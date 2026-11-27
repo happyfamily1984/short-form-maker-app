@@ -5,7 +5,7 @@ const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const FM = Object.fromEntries(FORMATS.map(t => [t.id, t]));
 const fmOf = p => FM[p && p.fmt] || FM.edu;
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.2.0';
 
 const store = {
   get(k, d) { try { const v = localStorage.getItem('sfm.' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
@@ -377,7 +377,7 @@ function aiErr(r, ki) {
   return `${who} 요청 실패 (${r.status}) ${msg.slice(0, 120)}`;
 }
 const AI_SYS = `You are a top writer of faceless educational, science and documentary short-form videos (YouTube Shorts, Reels, TikTok). You study why a hit video works and write a NEW script the creator can publish as their own: you keep its format, hook type, beat order, open-loop position, pacing and kind of payoff, and you write every sentence, example and visual from scratch. Never reuse an original title or sentence. Never use real living people, real brands, or characters from existing films, shows, games or comics.
-Formula: shot 1 hooks within 3 seconds with a myth-busting question, a surprising number or the most astonishing image; then the common belief or context; then the real mechanism shown with ONE clear visual; then "but here is the stranger part" (an open loop that keeps people watching); then a one-line answer to the opening question; the last shot leaves a new question that invites comments. Each shot is 5 seconds with one visual and at most one narration line (Korean up to 28 characters, English up to 14 words). The visual changes every shot.
+Formula: shot 1 hooks within 3 seconds with a myth-busting question, a surprising number or the most astonishing image; then the common belief or context; then the real mechanism shown with ONE clear visual; then "but here is the stranger part" (an open loop that keeps people watching); then a one-line answer to the opening question; the last shot leaves a new question that invites comments. Each shot lasts 2 to 5 seconds (field sec) with one visual and at most one narration line; match the requested cut rhythm (Korean up to 28 characters, English up to 14 words). The visual changes every shot.
 Accuracy matters more than drama. State only well-established facts, give numbers you are confident about (round them), and never invent studies, dates or quotes. If something is debated, say so in the line. List every factual claim the script makes in facts[] with a web search query that would verify it.
 Narration is the voice of the video: lines are spoken by an off-screen narrator (sp = -2) unless an on-screen character speaks (sp = index into chars). Characters are optional: a recurring mascot or presenter (person, animal, original cartoon character or object) may appear; most scripts need none (chars empty). Looks must be drawable and never resemble real people.
 No gore, weapons in use, sexual content or dangerous how-to (AI video generators reject them).
@@ -407,13 +407,13 @@ async function gemini(prompt, schema, token, opt = {}) {
 }
 const S_STR = { type: 'STRING' }, S_INT = { type: 'INTEGER' }, S_ARR = items => ({ type: 'ARRAY', items });
 const S_CHAR = { type: 'OBJECT', properties: { r: S_STR, k: S_STR, nk: S_STR, ne: S_STR, dk: S_STR, de: S_STR }, required: ['r', 'k', 'nk', 'ne', 'dk', 'de'] };
-const S_SHOT = { type: 'OBJECT', properties: { bt: S_STR, pk: S_STR, pe: S_STR, ak: S_STR, ae: S_STR, sp: S_INT, dk: S_STR, de: S_STR, cam: S_STR }, required: ['bt', 'pk', 'pe', 'ak', 'ae', 'sp', 'dk', 'de', 'cam'] };
+const S_SHOT = { type: 'OBJECT', properties: { sec: S_INT, bt: S_STR, pk: S_STR, pe: S_STR, ak: S_STR, ae: S_STR, sp: S_INT, dk: S_STR, de: S_STR, cam: S_STR }, required: ['sec', 'bt', 'pk', 'pe', 'ak', 'ae', 'sp', 'dk', 'de', 'cam'] };
 const S_FACT = { type: 'OBJECT', properties: { f: S_STR, q: S_STR }, required: ['f', 'q'] };
 const S_SCRIPT = { type: 'OBJECT', properties: { tk: S_STR, te: S_STR, lk: S_STR, le: S_STR, fmt: S_STR, style: S_STR, chars: S_ARR(S_CHAR), shots: S_ARR(S_SHOT), facts: S_ARR(S_FACT) }, required: ['tk', 'te', 'lk', 'le', 'fmt', 'style', 'chars', 'shots', 'facts'] };
-const AI_FIELDS = `JSON fields: tk/te = Korean/English title (a curiosity-driven title that states the question or the surprising fact, no clickbait lies); lk/le = Korean/English one-line summary; fmt = one of ${FORMATS.map(f => `${f.id} (${f.en})`).join(', ')}; style = one of ${Object.entries(STYLES).map(([k, v]) => `${k} (${v[0]})`).join(', ')} chosen to fit the topic (nature, places and real objects: docreal; how things work, space, the body: sci3d; numbers, comparisons, everyday knowledge: motion; past events: history); chars[] (usually empty) = {r: role code H presenter or lead, A helper, X other; k: kind code P person, A animal, C original cartoon character, O object; nk/ne = Korean/English name; dk/de = Korean/English look}; shots[] = {bt = Korean beat label of 2 to 4 characters such as 훅, 오해, 원리, 반전, 핵심, 마무리; pk/pe = Korean/English setting of the visual; ak/ae = Korean/English description of what is on screen, concrete enough for an image generator, naming any character that appears; sp = -2 for narrator, speaker index into chars, or -1 for silence; dk/de = Korean/English narration line or empty; cam = one of ${Object.keys(CAMS).join(', ')}}; facts[] = {f: one factual claim the script makes, in Korean; q: a short web search query (Korean for Korean facts, English otherwise) to verify it}.`;
-const draftJson = p => JSON.stringify({ tk: p.tk, te: p.te, lk: p.lk, le: p.le, fmt: p.fmt, style: p.style, chars: p.chars.map(c => ({ r: c.r, k: ckind(c), nk: c.nk, ne: c.ne, dk: c.dk, de: c.de })), shots: p.shots.map(s => ({ bt: s.bt || '', pk: s.pk, pe: s.pe, ak: s.ak, ae: s.ae, sp: s.sp, dk: s.dk, de: s.de, cam: s.cam })) });
+const AI_FIELDS = `JSON fields: tk/te = Korean/English title (a curiosity-driven title that states the question or the surprising fact, no clickbait lies); lk/le = Korean/English one-line summary; fmt = one of ${FORMATS.map(f => `${f.id} (${f.en})`).join(', ')}; style = one of ${Object.entries(STYLES).map(([k, v]) => `${k} (${v[0]})`).join(', ')} chosen to fit the topic (nature, places and real objects: docreal; how things work, space, the body: sci3d; numbers, comparisons, everyday knowledge: motion; past events: history); chars[] (usually empty) = {r: role code H presenter or lead, A helper, X other; k: kind code P person, A animal, C original cartoon character, O object; nk/ne = Korean/English name; dk/de = Korean/English look}; shots[] = {sec = shot length in whole seconds from 2 to 5; bt = Korean beat label of 2 to 4 characters such as 훅, 오해, 원리, 반전, 핵심, 마무리; pk/pe = Korean/English setting of the visual; ak/ae = Korean/English description of what is on screen, concrete enough for an image generator, naming any character that appears; sp = -2 for narrator, speaker index into chars, or -1 for silence; dk/de = Korean/English narration line or empty; cam = one of ${Object.keys(CAMS).join(', ')}}; facts[] = {f: one factual claim the script makes, in Korean; q: a short web search query (Korean for Korean facts, English otherwise) to verify it}.`;
+const draftJson = p => JSON.stringify({ tk: p.tk, te: p.te, lk: p.lk, le: p.le, fmt: p.fmt, style: p.style, chars: p.chars.map(c => ({ r: c.r, k: ckind(c), nk: c.nk, ne: c.ne, dk: c.dk, de: c.de })), shots: p.shots.map(s => ({ sec: +s.sec || 5, bt: s.bt || '', pk: s.pk, pe: s.pe, ak: s.ak, ae: s.ae, sp: s.sp, dk: s.dk, de: s.de, cam: s.cam })) });
 const cleanShot = (s, nChars) => { const sp = Number.isInteger(s.sp) && s.sp >= NARR && s.sp < nChars ? s.sp : -1, line = sp === -1 ? '' : null;
-  return { bt: String(s.bt || '').slice(0, 8), pk: String(s.pk || ''), pe: String(s.pe || ''), ak: String(s.ak || ''), ae: String(s.ae || ''), sp, dk: line == null ? String(s.dk || '') : '', de: line == null ? String(s.de || '') : '', cam: CAMS[s.cam] ? s.cam : 'ms', sec: 5 }; };
+  return { bt: String(s.bt || '').slice(0, 8), pk: String(s.pk || ''), pe: String(s.pe || ''), ak: String(s.ak || ''), ae: String(s.ae || ''), sp, dk: line == null ? String(s.dk || '') : '', de: line == null ? String(s.de || '') : '', cam: CAMS[s.cam] ? s.cam : 'ms', sec: Math.max(2, Math.min(10, Math.round(+s.sec || 5))) }; };
 function applyScript(p, r) {
   if (!r || !Array.isArray(r.shots) || !r.shots.length) return false;
   ['tk', 'te', 'lk', 'le'].forEach(k => { if (r[k]) p[k] = String(r[k]); });
@@ -422,7 +422,7 @@ function applyScript(p, r) {
   if (Array.isArray(r.chars)) p.chars = r.chars.slice(0, 4).map((c, i) => { const old = p.chars[i], same = old && old.nk === String(c.nk || '');
     return Object.assign({ r: ROLE_NAME[c.r] ? c.r : 'X', k: kindCode(c.k), nk: String(c.nk || ''), ne: String(c.ne || ''), dk: String(c.dk || ''), de: String(c.de || '') },
       old && old.ok ? { ok: old.ok } : {}, same ? { imgFull: old.imgFull || '', imgFace: old.imgFace || '', libId: old.libId || '' } : {}); });
-  p.shots = r.shots.slice(0, 10).map(s => cleanShot(s, p.chars.length));
+  p.shots = r.shots.slice(0, 16).map(s => cleanShot(s, p.chars.length));
   if (Array.isArray(r.facts)) p.facts = r.facts.filter(x => x && x.f).slice(0, 8).map(x => ({ f: String(x.f), q: String(x.q || x.f), ok: false }));
   p.over = {}; p.subs = {}; return true;
 }
@@ -438,7 +438,12 @@ function aiRun(label, job, apply, note) {
 /* ----- 원본 → 내 대본 ----- */
 const KIND_EN = { P: 'person', A: 'animal', C: 'original cartoon character', O: 'object character' };
 const fmtGuess = (text, kind) => FM[kind] ? kind : /과학|우주|science|space|physics|biology|chem/i.test(String(text || '')) ? 'sci' : /다큐|역사|미스터리|document|history|mystery/i.test(String(text || '')) ? 'doc' : 'edu';
-const remixShots = q => { const s = q.src, n = +q.len || s.script.length || (s.flow.length ? s.flow.length + 1 : 6); return Math.max(4, Math.min(8, n)); };
+/* 원본 길이(초)와 평균 컷 길이. 초 단위 분석이 있으면 그걸로, 없으면 장면 수로 어림 */
+const srcDur = s => +s.dur || (s.timeline && s.timeline.length ? s.timeline[s.timeline.length - 1].s + (s.step || 1) : 0) || (s.script.length || 6) * 5;
+const srcCut = s => { if (s.cuts && s.cuts.avg_shot_sec) return +s.cuts.avg_shot_sec; const tl = s.timeline || []; const c = tl.filter(x => x.cut).length; return c ? srcDur(s) / c : 0; };
+const remixSec = q => Math.max(15, Math.min(60, Math.round(+q.len || srcDur(q.src))));
+const remixCut = q => Math.max(2, Math.min(5, Math.round((srcCut(q.src) || 5) * 2) / 2));
+const remixShots = q => Math.max(4, Math.min(16, Math.round(remixSec(q) / remixCut(q))));
 const remixNoCast = q => q.castMode === 'none' || (!q.src.cast.length && q.castMode !== 'add');
 const remixMy = q => String(q.topic || '').trim();
 function remixPrompt(q) {
@@ -450,7 +455,7 @@ function remixPrompt(q) {
       : `The original has no characters, but the creator wants to add: ${String(q.cadd || '').trim() || 'one fitting lead character'}.`;
   return [`Adapt the hit short-form video below into ONE new original script.`,
     `Similarity: ${sim[2]}`,
-    `Shots: exactly ${n} shots of 5 seconds.`,
+    `Length: about ${remixSec(q)} seconds in total, about ${n} shots. Original cut rhythm: a new visual every ${remixCut(q)} seconds on average${srcCut(s) ? ' (measured second by second)' : ''}; keep that rhythm with sec values from 2 to 5, faster in the hook and the twist.`,
     `Topic: ${my ? `the creator chose this topic (may be Korean): ${my}` : (+q.sim || 2) === 1 ? 'the same topic as the original' : 'pick a fresh topic in the same field that has the same kind of surprise'}.`,
     dir ? `The creator's channel direction (may be Korean): ${dir}.` : '',
     `Characters: ${castText}`,
@@ -460,9 +465,9 @@ function remixPrompt(q) {
     `Target audience: ${isEn() ? 'English-speaking viewers; the English fields are what gets filmed' : 'Korean viewers; the Korean fields are what gets filmed'}.`,
     AI_FIELDS, '',
     'ORIGINAL VIDEO (analysis in Korean; study it, do not copy it):',
-    JSON.stringify({ title: s.title, topic: s.topic, format: s.format, visual: s.visual, hook: s.hook, structure: s.structure, open_loop: s.loops, script: s.script, facts_claimed: s.facts, flow: s.flow, ending: s.ending, why_it_works: s.take, viewer_reaction: s.reaction })].filter(x => x !== '').join('\n');
+    (s.timeline && s.timeline.length ? `SECOND-BY-SECOND BREAKDOWN of the original (Korean; [second, what is on screen, on-screen text, audio, 1 if the scene cuts here]). Use it only to learn the pacing, where text pops up and where the reveal lands. Do NOT recreate its shots or images; invent new visuals for the new topic:\n${JSON.stringify(s.timeline.map(x => [x.s, x.visual, x.text, x.audio, x.cut ? 1 : 0]))}\n` : '') + JSON.stringify({ title: s.title, topic: s.topic, format: s.format, visual: s.visual, hook: s.hook, structure: s.structure, open_loop: s.loops, script: s.script, facts_claimed: s.facts, flow: s.flow, ending: s.ending, why_it_works: s.take, viewer_reaction: s.reaction })].filter(x => x !== '').join('\n');
 }
-const slimSrc = s => ({ id: s.id || '', url: s.url || '', thumb: s.thumb || '', title: s.title || '', from: s.from || '', topic: s.topic || '', format: s.format || '', visual: s.visual || '', audio: s.audio || '', hook: s.hook || '', loops: s.loops || '', cast: s.cast, script: s.script, flow: s.flow, ending: s.ending || '' });
+const slimSrc = s => ({ dur: srcDur(s), cut: srcCut(s), id: s.id || '', url: s.url || '', thumb: s.thumb || '', title: s.title || '', from: s.from || '', topic: s.topic || '', format: s.format || '', visual: s.visual || '', audio: s.audio || '', hook: s.hook || '', loops: s.loops || '', cast: s.cast, script: s.script, flow: s.flow, ending: s.ending || '' });
 function aiRemix(q) {
   const s = q.src;
   aiRun('AI가 내 대본으로 바꿔 쓰는 중', token => gemini(remixPrompt(q), S_SCRIPT, token), r => {
@@ -556,7 +561,8 @@ const AN_SYS = 'You are a careful short-form video analyst. You watch the attach
 const S_ANALYSIS = { type: 'OBJECT', properties: { title_ko: S_STR, topic: S_STR, format: S_STR, visual: S_STR, audio: S_STR, hook: S_STR, structure: S_STR, loops: S_STR,
   cast: S_ARR({ type: 'OBJECT', properties: { role: S_STR, kind: S_STR, who: S_STR, look: S_STR }, required: ['role', 'kind', 'who', 'look'] }),
   script: S_ARR({ type: 'OBJECT', properties: { t: S_STR, scene: S_STR, line: S_STR }, required: ['t', 'scene', 'line'] }),
-  facts: S_ARR(S_STR), flow: S_ARR(S_STR), ending: S_STR, take: S_STR }, required: ['title_ko', 'topic', 'format', 'visual', 'audio', 'hook', 'structure', 'loops', 'cast', 'script', 'facts', 'flow', 'ending', 'take'] };
+  timeline: S_ARR({ type: 'OBJECT', properties: { s: S_INT, visual: S_STR, text: S_STR, audio: S_STR, cut: { type: 'BOOLEAN' }, prompt: S_STR }, required: ['s', 'visual', 'text', 'audio', 'cut', 'prompt'] }),
+  facts: S_ARR(S_STR), flow: S_ARR(S_STR), ending: S_STR, take: S_STR }, required: ['title_ko', 'topic', 'format', 'visual', 'audio', 'hook', 'structure', 'loops', 'cast', 'script', 'timeline', 'facts', 'flow', 'ending', 'take'] };
 function aiAnalyze(id, done) {
   aiRun('AI가 영상을 직접 보는 중', token => gemini(`붙인 유튜브 영상을 처음부터 끝까지 보고 아래 항목을 한국어로 채워라. 교육·과학·다큐멘터리 정보형 숏폼으로 보고 분석한다.
 - title_ko: 이 영상을 한 줄로 부를 제목 (원래 제목을 그대로 옮기지 않는다)
@@ -572,7 +578,8 @@ function aiAnalyze(id, done) {
 - facts: 영상이 전하는 핵심 사실 2~4개 요약 (맞는지 판단하지 않는다)
 - flow: 마무리 직전까지의 흐름 3~5단계
 - ending: 마무리 한 줄
-- take: 이 영상이 잘 되는 이유 한 줄`, S_ANALYSIS, token, { video: `https://www.youtube.com/watch?v=${id}`, sys: AN_SYS, temp: 0.3 }),
+- take: 이 영상이 잘 되는 이유 한 줄
+- timeline: 영상 처음부터 끝까지 1초마다(60초가 넘으면 2초마다) 한 칸씩 빠짐없이. s 는 그 칸이 시작하는 초, visual 은 화면(피사체·구도·카메라 움직임·색감), text 는 화면 글자 요지, audio 는 들리는 것(내레이션 요지·효과음·음악 변화), cut 은 그 칸에서 장면이 바뀌면 true, prompt 는 그 장면을 새로 만들 때 쓸 영어 프롬프트 한 줄 (원본의 글자·로고·실존 인물은 넣지 않는다)`, S_ANALYSIS, token, { video: `https://www.youtube.com/watch?v=${id}`, sys: AN_SYS, temp: 0.3 }),
     r => { if (!r || !Array.isArray(r.script)) return toast('AI 응답이 비어 있습니다'); done(r); }, '영상 길이에 따라 30초~2분 걸립니다.');
 }
 
@@ -622,7 +629,9 @@ function srcFrom(va, extra) {
   return Object.assign({ topic: noGuess(va.topic), visual: noGuess(va.visual), loops: noGuess(va.loops), facts: (Array.isArray(va.facts) ? va.facts : []).map(noGuess).filter(Boolean).slice(0, 5), format: noGuess(va.format), audio: noGuess(va.audio), hook: noGuess(va.hook), structure: noGuess(va.structure), take: noGuess(va.take), reaction: noGuess(va.reaction),
     cast: (Array.isArray(va.cast) ? va.cast : []).filter(c => c && (c.who || c.look || c.desc)).slice(0, 4).map(c => ({ role: noGuess(c.role) || '등장인물', kind: KINDS[kindCode(c.kind)][0], who: noGuess(c.who || c.desc), look: noGuess(c.look) })),
     script: (Array.isArray(va.script) ? va.script : []).filter(x => x && (x.scene || x.line)).slice(0, 10).map(x => ({ t: String(x.t || ''), scene: noGuess(x.scene), line: noGuess(x.line) })),
-    flow: fl, ending: noGuess(va.ending), watched: !!va.watched }, extra || {});
+    flow: fl, ending: noGuess(va.ending), watched: !!va.watched,
+    timeline: (Array.isArray(va.timeline) ? va.timeline : []).filter(x => x && (x.visual || x.prompt)).slice(0, 120).map(x => ({ s: Math.max(0, Math.round(+x.s || 0)), visual: noGuess(x.visual), text: noGuess(x.text), audio: noGuess(x.audio), cut: !!x.cut, prompt: String(x.prompt || '') })).sort((a, b) => a.s - b.s),
+    step: +va.timeline_step || 1, cuts: va.cuts || null }, extra || {});
 }
 const srcOfVideo = (v, va) => srcFrom(va, { id: v.id, url: v.url, thumb: v.thumb, title: (va && va.title_ko) || v.title, orig: v.title, genre: v.genre, kind: v.kind, from: `${String(v.genre || '').replace(/^해외\s*/, '')} · 조회 ${man(v.views)}`, dur: v.dur, views: v.views });
 const srcEmpty = s => !s.script.length && !s.flow.length && !s.cast.length && !s.hook && !s.topic;
@@ -1035,7 +1044,7 @@ function scoreOf(p) {
     [p.shots.every(s => s['p' + k] && s['a' + k]), '모든 샷에 장소와 화면 묘사가 있다', '비어 있는 샷을 채우세요.'],
     [p.chars.every(c => (c['d' + k] || '').length >= (m === 'kr' ? 10 : 20)), p.chars.length ? '등장인물 생김새 설명이 충분하다' : '등장인물 없이 만드는 영상이다', '사람은 나이대·머리·옷, 동물은 종·털색·크기를 적으세요.'],
     [p.shots.every(s => s.sp < 0 || p.chars[s.sp]), '말하는 등장인물이 모두 등장인물 탭에 있다', '삭제한 인물의 대사가 남아 있습니다.'],
-    [p.shots.length >= 4 && p.shots.length <= 8, '샷이 4~8개다', '한 편은 6샷(30초)이 가장 안정적입니다.'],
+    [p.shots.length >= 4 && p.shots.length <= 16, '샷이 4~16개다', '2~5초 샷으로 15~60초를 채우세요.'],
     [tot >= 15 && tot <= 60, '전체 길이가 15~60초다', `지금 ${tot}초입니다.`],
     [!same, '원본과 제목이 다르다', '원본 제목을 그대로 쓰면 안 됩니다. 제목을 고치세요.'],
     [!(p.facts || []).length || (p.facts || []).every(x => x.ok), '핵심 사실을 모두 확인했다', '대본 탭의 사실 확인에서 하나씩 검색해 체크하세요.'],
@@ -1110,7 +1119,7 @@ function feedCard(v, va, n) {
   return `<article class="card fv"><button class="fthumb" data-act="trendVideo" data-id="${esc(v.id)}" aria-label="내 것으로 바꾸기">${thumb(v.thumb, fm.icon, fm.hue)}<span class="rk num ${n <= 3 ? 'top' : ''}">${n}</span><span class="dur num">${v.dur || '?'}초</span></button>
     <div class="fbody"><b class="ft">${esc(ko || v.title)}</b>${topic && topic !== ko ? `<small class="ftopic">${esc(topic)}</small>` : ''}
       <small class="num">${ic('eye')}${man(v.views)}${v.vel ? `<i>${ic('rocket')}하루 +${man(v.vel)}</i>` : ''}</small>
-      <div class="ftags"><span class="tag" style="--h:${fm.hue}">${ic(fm.icon)}${fm.name}</span>${va && va.format ? `<span class="tag mut">${esc(noGuess(va.format))}</span>` : ''}${va && va.visual ? `<span class="tag mut">${esc(noGuess(va.visual))}</span>` : ''}${va && va.watched ? `<span class="tag ok">${ic('eye')}직접 봄</span>` : ''}</div>
+      <div class="ftags"><span class="tag" style="--h:${fm.hue}">${ic(fm.icon)}${fm.name}</span>${va && va.format ? `<span class="tag mut">${esc(noGuess(va.format))}</span>` : ''}${va && va.visual ? `<span class="tag mut">${esc(noGuess(va.visual))}</span>` : ''}${va && va.watched ? `<span class="tag ok">${ic('eye')}${va.timeline && va.timeline.length ? '초 단위 분석' : '직접 봄'}</span>` : ''}</div>
       <div class="facts"><button class="btn sm pri" data-act="trendVideo" data-id="${esc(v.id)}">${ic('sparkle')}내 것으로 바꾸기</button><button class="ib sm" data-act="openUrl" data-u="${esc(v.url || '')}" aria-label="원본 영상 보기">${ic('play')}</button></div></div></article>`;
 }
 V.home = p => {
@@ -1279,12 +1288,13 @@ V.remix = p => {
     <div class="sec">${h2('list', s.script.length ? `원본 구성 ${s.script.length}장면` : '원본 흐름')}
       <ol class="scr">${s.script.length ? s.script.map(x => `<li><span class="t num">${esc(x.t)}</span><p>${esc(x.scene)}${x.line ? `<em>${esc(x.line)}</em>` : ''}</p></li>`).join('') : [...s.flow, s.ending].filter(Boolean).map((x, i) => `<li><span class="t num">${i + 1}</span><p>${esc(x)}</p></li>`).join('')}</ol>
       ${s.ending && s.script.length ? `<p class="hint">마무리: ${esc(s.ending)}</p>` : ''}
+      ${s.timeline && s.timeline.length ? `<details class="more"><summary>${ic('clock')}초 단위 분석 ${s.timeline.length}칸 · 평균 ${Math.round(srcCut(s) * 10) / 10}초마다 장면 전환</summary><div class="body"><ol class="tl1">${s.timeline.map(x => `<li class="${x.cut ? 'cut' : ''}"><span class="t num">${x.s}초</span><div><p>${esc(x.visual)}</p>${x.text ? `<p class="tx">${ic('caption')}${esc(x.text)}</p>` : ''}${x.audio ? `<p class="au">${ic('mic')}${esc(x.audio)}</p>` : ''}${x.prompt ? `<p class="pr">${esc(x.prompt)}</p>` : ''}</div></li>`).join('')}</ol><p class="hint">굵은 칸이 장면이 바뀌는 순간입니다. 재구성할 때 이 리듬(언제 장면이 바뀌고 언제 글자가 뜨는지)만 가져오고, 장면과 문장은 새로 만듭니다. 원본 장면을 그대로 다시 만들면 재사용 콘텐츠로 수익화가 막힐 수 있습니다.</p></div></details>` : ''}
       ${s.facts && s.facts.length ? `<details class="more"><summary>${ic('checkc')}원본이 전한 사실 ${s.facts.length}</summary><div class="body"><ul class="flist">${s.facts.map(x => `<li>${esc(x)}</li>`).join('')}</ul><p class="hint">원본의 주장일 뿐 확인된 사실이 아닙니다. 그대로 쓰지 말고 내 대본의 사실 확인에서 다시 검증하세요.</p></div></details>` : ''}</div>`}
     <div class="sec">${h2('sparkle', '어떻게 바꿀까요')}
       <span class="lab">닮은 정도</span>${seg('p_sim', SIMS.map(x => [x[0], x[1]]), sim)}
       <p class="hint">${['', '같은 주제를 다른 문장·다른 예시·다른 화면으로 새로 씁니다.', '구성·훅·반전 자리는 그대로, 같은 분야의 비슷한 다른 주제로 옮깁니다.', '훅 방식과 장면 순서만 빌리고 주제는 새로 고릅니다.'][sim]}</p>
       <div class="field"><label>${ic('target')}내 주제 ${sim === 1 ? '(같은 주제면 비워 두세요)' : '(비우면 AI가 고릅니다)'}</label><textarea class="in" rows="2" data-p="topic" placeholder="${esc(fm.ex)}">${esc(p.topic || '')}</textarea></div>
-      <span class="lab">길이</span><div class="chips">${[[0, `원본처럼 (${remixShots(Object.assign({}, p, { len: 0 }))}샷)`], [4, '20초'], [6, '30초'], [8, '40초']].map(([v, l]) => `<button class="chip ${(+p.len || 0) === v ? 'on' : ''}" data-act="set" data-k="p_len" data-v="${v}">${l}</button>`).join('')}</div></div>
+      <span class="lab">길이</span><div class="chips">${[[0, `원본처럼 (${remixSec(Object.assign({}, p, { len: 0 }))}초)`], [20, '20초'], [30, '30초'], [45, '45초']].map(([v, l]) => `<button class="chip ${(+p.len || 0) === v ? 'on' : ''}" data-act="set" data-k="p_len" data-v="${v}">${l}</button>`).join('')}</div></div>
     <div class="sec">${h2('users', '화면에 나오는 진행자·캐릭터')}
       ${s.cast.length ? seg('p_castMode', [['keep', '비슷한 새 캐릭터로'], ['none', '없이 (내레이션만)']], noCast ? 'none' : 'keep') : seg('p_castMode', [['none', '없이 (내레이션만)'], ['add', '캐릭터 넣기']], noCast ? 'none' : 'add')}
       ${!s.cast.length ? (noCast ? '<p class="hint">자료화면 같은 장면과 내레이션만으로 만듭니다. 정보형 숏폼에서 가장 흔하고 만들기 쉬운 방식입니다.</p>' : `<div class="field"><textarea class="in" rows="2" data-p="cadd" aria-label="넣을 캐릭터" placeholder="예: 둥근 안경을 쓴 꼬마 과학자 캐릭터">${esc(p.cadd || '')}</textarea></div><p class="hint">매 편 같은 캐릭터가 나오면 채널을 기억하기 쉽습니다. 내 캐릭터에 저장해 두고 계속 쓰세요.</p>`)
@@ -1295,7 +1305,7 @@ V.remix = p => {
               ${lc ? '' : `<button class="pbtn" data-act="remixLib" data-i="${i}">${ic('users')}내 캐릭터 쓰기</button>`}</div></div>`; }).join('')}`}</div>
     <div class="sec"><div class="field"><label>${ic('flame')}마무리 바꾸기 (선택)</label><textarea class="in" rows="2" data-p="end" placeholder="${esc(s.ending ? `원본: ${s.ending}` : '예: 마지막에 다음 편 주제를 질문으로 던진다')}">${esc(p.end || '')}</textarea></div>
       <div class="field"><label>${ic('edit')}더 바라는 점 (선택)</label><textarea class="in" rows="2" data-p="more" placeholder="예: 초등학생도 알아듣게 쉽게">${esc(p.more || '')}</textarea></div></div>
-    <div class="sticky"><button class="btn pri" data-act="remixGo" ${srcEmpty(s) ? 'disabled' : ''}>${ic('sparkle')}${aiKeys().length ? `내 대본으로 변환 · ${n}샷 ${n * 5}초` : 'API 키 넣으러 가기'}</button></div>` };
+    <div class="sticky"><button class="btn pri" data-act="remixGo" ${srcEmpty(s) ? 'disabled' : ''}>${ic('sparkle')}${aiKeys().length ? `내 대본으로 변환 · 약 ${remixSec(p)}초 ${n}샷` : 'API 키 넣으러 가기'}</button></div>` };
 };
 
 V.library = p => {
@@ -1494,10 +1504,10 @@ const A = {
   resetP: d => { delete draft.over[d.k + ':' + MODE()]; touch(); render(); },
   addChar: () => { if (draft.chars.length >= 4) return toast('등장인물은 4까지입니다'); draft.chars.push({ r: draft.chars.length ? 'X' : 'H', k: draft.chars.length ? ckind(draft.chars[0]) : 'P', nk: '새 등장인물', ne: 'New Character', dk: '', de: '' }); touch(); render(); },
   delChar: d => { const i = +d.i; dialog('이 등장인물을 삭제할까요?', `${cname(draft.chars[i])} · 이 등장인물의 대사는 내레이션으로 바뀝니다.`, [['취소', null], ['삭제', () => { draft.chars.splice(i, 1); draft.shots.forEach(s => { if (s.sp === i) s.sp = s.dk || s.de ? NARR : -1; else if (s.sp > i) s.sp--; }); draft.over = {}; touch(); render(); }, 'pri']]); },
-  addShot: () => { if (draft.shots.length >= 10) return toast('샷은 10개까지입니다'); draft.shots.splice(Math.max(1, draft.shots.length - 1), 0, blankShot('ms', '')); draft.over = {}; touch(); render(); },
+  addShot: () => { if (draft.shots.length >= 16) return toast('샷은 16개까지입니다'); draft.shots.splice(Math.max(1, draft.shots.length - 1), 0, blankShot('ms', '')); draft.over = {}; touch(); render(); },
   shotMenu: (d, el) => { const i = +el.closest('.beat').dataset.i, s = draft.shots[i], mv = n => { draft.shots.splice(i + n, 0, draft.shots.splice(i, 1)[0]); draft.over = {}; touch(); render(); };
     sheet(`샷 ${i + 1} · ${beatOf(draft, i)[0]}`, [['AI로 이 샷 다시 쓰기', aiKeys().length ? '3가지 안 중에서 고르기' : '설정에서 Gemini API 키를 넣어야 합니다', () => aiShot(i)],
-      [`길이 ${s.sec === 10 ? '5초로' : '10초로'} 바꾸기`, `지금 ${s.sec || 5}초`, () => { s.sec = s.sec === 10 ? 5 : 10; touch(); render(); }],
+      [`길이 바꾸기 (지금 ${s.sec || 5}초)`, '2·3·4·5·10초 중에서', () => sheet(`샷 ${i + 1} 길이`, [2, 3, 4, 5, 10].map(n => [`${n}초${(s.sec || 5) === n ? ' (지금)' : ''}`, n < 5 ? '영상 샷이면 클링 5초 영상을 앞에서부터 잘라 씁니다' : '', () => { s.sec = n; touch(); render(); }]))],
       ['위로 옮기기', '', () => { if (i > 0) mv(-1); }], ['아래로 옮기기', '', () => { if (i < draft.shots.length - 1) mv(1); }],
       ['이 샷 삭제', '', () => { if (draft.shots.length <= 3) return toast('샷은 최소 3개입니다'); draft.shots.splice(i, 1); draft.over = {}; touch(); render(); }]]); },
   aiAll: () => aiRewriteAll(),

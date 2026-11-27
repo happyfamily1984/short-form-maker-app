@@ -29,9 +29,10 @@ const script = { tk: '오로라는 왜 초록색일까?', te: 'Why Are Auroras G
   await pg.click('.chip[data-k="p_f"][data-v="sci"]'); ok(await pg.locator('.fv').count() === 2, 'sci filter');
   await pg.click('.seg [data-k="p_mk"][data-v="global"]'); ok(await pg.locator('.fv').count() === 1, 'global sci');
   await pg.click('.seg [data-k="p_mk"][data-v="kr"]'); await pg.click('.chip[data-k="p_f"][data-v=""]');
-  await pg.click('.fv .btn[data-id="dSCI1"]'); await shot('02_remix'); await sc(900); await shot('02b_remix');
+  await pg.click('.fv .btn[data-id="dSCI1"]'); await shot('02_remix'); ok(/초 단위 분석 42칸/.test(await pg.locator('details.more summary').first().innerText()), 'timeline box'); ok(/약 42초 14샷/.test(await pg.locator('[data-act="remixGo"]').innerText()), 'remix len'); await sc(900); await shot('02b_remix');
   await pg.fill('[data-p="topic"]', '오로라는 왜 초록색일까'); await pg.click('[data-act="remixGo"]'); await pg.waitForSelector('.beat');
   ok(/오로라는 왜 초록색일까/.test(prompts[prompts.length - 1]) && /open_loop/.test(prompts[prompts.length - 1]), 'remix prompt topic');
+  ok(/SECOND-BY-SECOND/.test(prompts[prompts.length - 1]) && /every 3 seconds/.test(prompts[prompts.length - 1]), 'remix prompt timeline');
   await shot('03_editor'); await sc(700); await pg.waitForTimeout(500); await shot('03b_facts');
   await pg.click('[data-act="factOk"]'); ok(await ev(() => draft.facts[0].ok), 'fact ok');
   await pg.click('.etabs [data-v="finish"]'); await pg.waitForTimeout(2200); await sc(1250); await pg.waitForTimeout(400); await shot('04_finish_voice');
