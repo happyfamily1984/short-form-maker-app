@@ -40,6 +40,8 @@ public class MainActivity extends Activity {
     private static final int REQ_PICK = 12;
     private static final int REQ_VIDEOS = 13;
     private VideoMaker maker;
+    private android.speech.tts.TextToSpeech testTts;
+    private void toastJs(String m) { runOnUiThread(() -> web.evaluateJavascript("window.toast && toast(" + org.json.JSONObject.quote(m) + ")", null)); }
 
     private WebView web;
     private FrameLayout root;
@@ -470,6 +472,27 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public void cancelAssemble() { if (maker != null) maker.cancel(); }
+
+        /* 내레이션 목소리 미리 듣기 */
+        @JavascriptInterface
+        public String ttsTest(String text, String lang, double rate, double pitch) {
+            runOnUiThread(() -> {
+                if (testTts != null) { testTts.shutdown(); testTts = null; }
+                testTts = new android.speech.tts.TextToSpeech(MainActivity.this, st -> {
+                    if (st != android.speech.tts.TextToSpeech.SUCCESS || testTts == null) { toastJs("휴대폰 음성 엔진을 켜지 못했습니다"); return; }
+                    int ok = testTts.setLanguage(java.util.Locale.forLanguageTag(lang));
+                    if (ok == android.speech.tts.TextToSpeech.LANG_MISSING_DATA || ok == android.speech.tts.TextToSpeech.LANG_NOT_SUPPORTED) { toastJs("이 언어의 음성 데이터가 없습니다. 음성 설정에서 받아 주세요"); return; }
+                    testTts.setSpeechRate((float) rate); testTts.setPitch((float) pitch);
+                    testTts.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "test");
+                });
+            });
+            return "ok";
+        }
+
+        @JavascriptInterface
+        public void openTtsSettings() {
+            runOnUiThread(() -> { try { startActivity(new Intent("com.android.settings.TTS_SETTINGS")); } catch (Exception e) { try { startActivity(new Intent(android.provider.Settings.ACTION_SETTINGS)); } catch (Exception ignored) { } } });
+        }
 
         @JavascriptInterface
         public void shareVideo(String uri, String title, String text) {

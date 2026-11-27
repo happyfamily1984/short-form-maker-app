@@ -4,14 +4,14 @@ const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const FM = Object.fromEntries(FORMATS.map(t => [t.id, t]));
-const fmOf = p => FM[p && p.fmt] || FM.etc;
-const APP_VERSION = '1.0.0';
+const fmOf = p => FM[p && p.fmt] || FM.edu;
+const APP_VERSION = '1.1.0';
 
 const store = {
   get(k, d) { try { const v = localStorage.getItem('sfm.' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem('sfm.' + k, JSON.stringify(v)); } catch (e) {} }
 };
-let settings = Object.assign({ theme: 'light', mode: 'kr', style: 'real', castKr: CAST_DEFAULT.kr, castEn: CAST_DEFAULT.en, checks: [], aiKeys: '', aiModel: '', myBg: '' }, store.get('settings', {}));
+let settings = Object.assign({ theme: 'light', mode: 'kr', style: '', voice: { on: true, rate: 1.05, pitch: 1 }, castKr: CAST_DEFAULT.kr, castEn: CAST_DEFAULT.en, checks: [], aiKeys: '', aiModel: '', myBg: '' }, store.get('settings', {}));
 let projects = store.get('projects', []);
 const saveProjects = () => store.set('projects', projects);
 let charLib = store.get('chars', []);
@@ -125,8 +125,8 @@ const MODE = () => settings.mode === 'en' ? 'en' : 'kr';
 const isEn = () => MODE() === 'en';
 const sfx = m => (m || MODE()) === 'kr' ? 'k' : 'e';
 const blankShot = (cam, bt) => ({ bt: bt || '', pk: '', pe: '', ak: '', ae: '', sp: -1, dk: '', de: '', cam: cam || 'ms', sec: 5 });
-const newProject = fmt => { const now = Date.now(); return { id: uid(), fmt: FM[fmt] ? fmt : 'etc', src: null, tk: '새 숏폼', te: 'New Short', lk: '', le: '', chars: [],
-  shots: BEATS.map((b, i) => blankShot(['cu', 'ms', 'ms', 'cu', 'cu', 'ms'][i], b[0])), style: settings.style, ep: 1, subs: {}, over: {}, memo: '', fav: false, created: now, updated: now }; };
+const newProject = fmt => { const now = Date.now(); fmt = FM[fmt] ? fmt : 'edu'; return { id: uid(), fmt, src: null, facts: [], tk: '새 숏폼', te: 'New Short', lk: '', le: '', chars: [],
+  shots: BEATS.map((b, i) => Object.assign(blankShot(['cz', 'ws', 'pi', 'ws', 'cu', 'slo'][i], b[0]), { sp: NARR })), style: STYLES[settings.style] ? settings.style : FM[fmt].style, ep: 1, subs: {}, over: {}, memo: '', fav: false, created: now, updated: now }; };
 const T = (p, m) => p['t' + sfx(m)] || p.tk || p.te;
 const LG = (p, m) => p['l' + sfx(m)] || p.lk || p.le;
 const cname = (c, m) => c['n' + sfx(m)] || c.nk || c.ne;
@@ -148,7 +148,7 @@ function josa(word, j) {
 }
 
 const castOf = m => String(m === 'kr' ? settings.castKr : settings.castEn).trim();
-const styleOf = (p, m) => (STYLES[p.style] || STYLES.real)[m === 'kr' ? 1 : 2];
+const styleOf = (p, m) => (STYLES[p.style] || STYLES[fmOf(p).style])[m === 'kr' ? 1 : 2];
 const TONES = { H: ['또렷하고 자연스럽게', 'clear and natural'], V: ['또박또박 따지듯', 'pointed and firm'], A: ['다급하고 다정하게', 'urgent and warm'], X: ['놀란 목소리로', 'surprised'] };
 const moodOf = (p, i, m) => MOODS[BEATS.indexOf(posBeat(p, i))][m === 'kr' ? 0 : 1];
 /* 사람에게만 인물 분위기(한국인·American)를 붙인다. 동물·캐릭터·사물은 생김새만 */
@@ -376,12 +376,12 @@ function aiErr(r, ki) {
   if (r.status >= 500) return 'Gemini 서버가 혼잡합니다. 잠시 후 다시 시도하세요.';
   return `${who} 요청 실패 (${r.status}) ${msg.slice(0, 120)}`;
 }
-const AI_SYS = `You are a top short-form video writer (YouTube Shorts, Reels, TikTok) who adapts what works. You study why a hit video works and write a NEW script the creator can publish as their own: you keep the format, hook type, beat order, twist position, pacing and kind of payoff, and you change the characters, setting details, specific events, names and every line. Never reuse an original title, name or line. Never use real people, real brands, or characters from existing films, shows, games or comics; every character is a new design.
-Each script is a sequence of 5-second shots, 4 to 8 shots. One visible action per shot. At most one short line per shot (Korean up to 28 characters, English up to 14 words). The first shot must hook within 3 seconds; the last shot must land a laugh, a satisfying payoff, a warm feeling or a question.
-Characters can be people, animals, original cartoon characters or objects, and a script may have no characters at all (then chars is an empty array). Looks must be drawable: people = age range, gender, hair, outfit, impression, without ethnicity; animals = species or breed, fur color and pattern, size, one distinguishing feature; cartoon characters = art style, colors, shape, features; objects = shape, color, face or feature if any.
-A line is spoken by a character (sp = index into chars), by an off-screen narrator (sp = -2), or absent (sp = -1 with empty lines). Animals and objects normally do not talk on screen; use the narrator for them unless the source clearly has talking animals.
-No blood, weapons, sexual content or dangerous acts (AI video generators reject them).
-Korean fields are natural Korean with Korean names; English fields are natural native English with Western names and contain no Korean. Output JSON only.`;
+const AI_SYS = `You are a top writer of faceless educational, science and documentary short-form videos (YouTube Shorts, Reels, TikTok). You study why a hit video works and write a NEW script the creator can publish as their own: you keep its format, hook type, beat order, open-loop position, pacing and kind of payoff, and you write every sentence, example and visual from scratch. Never reuse an original title or sentence. Never use real living people, real brands, or characters from existing films, shows, games or comics.
+Formula: shot 1 hooks within 3 seconds with a myth-busting question, a surprising number or the most astonishing image; then the common belief or context; then the real mechanism shown with ONE clear visual; then "but here is the stranger part" (an open loop that keeps people watching); then a one-line answer to the opening question; the last shot leaves a new question that invites comments. Each shot is 5 seconds with one visual and at most one narration line (Korean up to 28 characters, English up to 14 words). The visual changes every shot.
+Accuracy matters more than drama. State only well-established facts, give numbers you are confident about (round them), and never invent studies, dates or quotes. If something is debated, say so in the line. List every factual claim the script makes in facts[] with a web search query that would verify it.
+Narration is the voice of the video: lines are spoken by an off-screen narrator (sp = -2) unless an on-screen character speaks (sp = index into chars). Characters are optional: a recurring mascot or presenter (person, animal, original cartoon character or object) may appear; most scripts need none (chars empty). Looks must be drawable and never resemble real people.
+No gore, weapons in use, sexual content or dangerous how-to (AI video generators reject them).
+Korean fields are natural spoken Korean narration; English fields are natural native English and contain no Korean. Output JSON only.`;
 async function gemini(prompt, schema, token, opt = {}) {
   const keys = aiKeys(); if (!keys.length) throw new Error('설정에서 Gemini API 키를 먼저 넣어 주세요.');
   const parts = []; if (opt.video) parts.push({ fileData: { fileUri: opt.video } }); parts.push({ text: prompt });
@@ -408,8 +408,9 @@ async function gemini(prompt, schema, token, opt = {}) {
 const S_STR = { type: 'STRING' }, S_INT = { type: 'INTEGER' }, S_ARR = items => ({ type: 'ARRAY', items });
 const S_CHAR = { type: 'OBJECT', properties: { r: S_STR, k: S_STR, nk: S_STR, ne: S_STR, dk: S_STR, de: S_STR }, required: ['r', 'k', 'nk', 'ne', 'dk', 'de'] };
 const S_SHOT = { type: 'OBJECT', properties: { bt: S_STR, pk: S_STR, pe: S_STR, ak: S_STR, ae: S_STR, sp: S_INT, dk: S_STR, de: S_STR, cam: S_STR }, required: ['bt', 'pk', 'pe', 'ak', 'ae', 'sp', 'dk', 'de', 'cam'] };
-const S_SCRIPT = { type: 'OBJECT', properties: { tk: S_STR, te: S_STR, lk: S_STR, le: S_STR, fmt: S_STR, style: S_STR, chars: S_ARR(S_CHAR), shots: S_ARR(S_SHOT) }, required: ['tk', 'te', 'lk', 'le', 'fmt', 'style', 'chars', 'shots'] };
-const AI_FIELDS = `JSON fields: tk/te = Korean/English title; lk/le = Korean/English one-line summary; fmt = one of ${FORMATS.map(f => `${f.id} (${f.en})`).join(', ')}; style = one of ${Object.entries(STYLES).map(([k, v]) => `${k} (${v[0]})`).join(', ')} chosen to fit the characters (animals in a live-action look use real; cartoon characters use toon3d, cute2d or webtoon); chars[] (may be empty) = {r: role code H lead, V counterpart or rival, A helper, X other; k: kind code P person, A animal, C cartoon character, O object; nk/ne = Korean/English name; dk/de = Korean/English look}; shots[] = {bt = Korean beat label of 2 to 5 characters such as 훅, 전개, 고조, 반전, 터짐, 마무리; pk/pe = Korean/English place; ak/ae = Korean/English visible action, naming the characters that appear; sp = speaker index into chars, -2 for narrator, -1 for no line; dk/de = Korean/English line or empty; cam = one of ${Object.keys(CAMS).join(', ')}}.`;
+const S_FACT = { type: 'OBJECT', properties: { f: S_STR, q: S_STR }, required: ['f', 'q'] };
+const S_SCRIPT = { type: 'OBJECT', properties: { tk: S_STR, te: S_STR, lk: S_STR, le: S_STR, fmt: S_STR, style: S_STR, chars: S_ARR(S_CHAR), shots: S_ARR(S_SHOT), facts: S_ARR(S_FACT) }, required: ['tk', 'te', 'lk', 'le', 'fmt', 'style', 'chars', 'shots', 'facts'] };
+const AI_FIELDS = `JSON fields: tk/te = Korean/English title (a curiosity-driven title that states the question or the surprising fact, no clickbait lies); lk/le = Korean/English one-line summary; fmt = one of ${FORMATS.map(f => `${f.id} (${f.en})`).join(', ')}; style = one of ${Object.entries(STYLES).map(([k, v]) => `${k} (${v[0]})`).join(', ')} chosen to fit the topic (nature, places and real objects: docreal; how things work, space, the body: sci3d; numbers, comparisons, everyday knowledge: motion; past events: history); chars[] (usually empty) = {r: role code H presenter or lead, A helper, X other; k: kind code P person, A animal, C original cartoon character, O object; nk/ne = Korean/English name; dk/de = Korean/English look}; shots[] = {bt = Korean beat label of 2 to 4 characters such as 훅, 오해, 원리, 반전, 핵심, 마무리; pk/pe = Korean/English setting of the visual; ak/ae = Korean/English description of what is on screen, concrete enough for an image generator, naming any character that appears; sp = -2 for narrator, speaker index into chars, or -1 for silence; dk/de = Korean/English narration line or empty; cam = one of ${Object.keys(CAMS).join(', ')}}; facts[] = {f: one factual claim the script makes, in Korean; q: a short web search query (Korean for Korean facts, English otherwise) to verify it}.`;
 const draftJson = p => JSON.stringify({ tk: p.tk, te: p.te, lk: p.lk, le: p.le, fmt: p.fmt, style: p.style, chars: p.chars.map(c => ({ r: c.r, k: ckind(c), nk: c.nk, ne: c.ne, dk: c.dk, de: c.de })), shots: p.shots.map(s => ({ bt: s.bt || '', pk: s.pk, pe: s.pe, ak: s.ak, ae: s.ae, sp: s.sp, dk: s.dk, de: s.de, cam: s.cam })) });
 const cleanShot = (s, nChars) => { const sp = Number.isInteger(s.sp) && s.sp >= NARR && s.sp < nChars ? s.sp : -1, line = sp === -1 ? '' : null;
   return { bt: String(s.bt || '').slice(0, 8), pk: String(s.pk || ''), pe: String(s.pe || ''), ak: String(s.ak || ''), ae: String(s.ae || ''), sp, dk: line == null ? String(s.dk || '') : '', de: line == null ? String(s.de || '') : '', cam: CAMS[s.cam] ? s.cam : 'ms', sec: 5 }; };
@@ -422,6 +423,7 @@ function applyScript(p, r) {
     return Object.assign({ r: ROLE_NAME[c.r] ? c.r : 'X', k: kindCode(c.k), nk: String(c.nk || ''), ne: String(c.ne || ''), dk: String(c.dk || ''), de: String(c.de || '') },
       old && old.ok ? { ok: old.ok } : {}, same ? { imgFull: old.imgFull || '', imgFace: old.imgFace || '', libId: old.libId || '' } : {}); });
   p.shots = r.shots.slice(0, 10).map(s => cleanShot(s, p.chars.length));
+  if (Array.isArray(r.facts)) p.facts = r.facts.filter(x => x && x.f).slice(0, 8).map(x => ({ f: String(x.f), q: String(x.q || x.f), ok: false }));
   p.over = {}; p.subs = {}; return true;
 }
 function aiRun(label, job, apply, note) {
@@ -435,50 +437,52 @@ function aiRun(label, job, apply, note) {
 
 /* ----- 원본 → 내 대본 ----- */
 const KIND_EN = { P: 'person', A: 'animal', C: 'original cartoon character', O: 'object character' };
-const fmtGuess = (text, kind) => { const t = String(text || ''); return /동물|강아지|고양이|animal|pet/i.test(t) ? 'animal' : /애니|캐릭터|animation|cartoon/i.test(t) ? 'anim' : /상황극|코미디|skit|comedy/i.test(t) ? 'skit' : /썰|사연|story/i.test(t) ? 'story' : /정보|꿀팁|tip|hack/i.test(t) ? 'info' : /드라마|복수|사이다|반전|로맨스|회귀|환생|drama/i.test(t) || kind === 'drama' ? 'drama' : 'etc'; };
+const fmtGuess = (text, kind) => FM[kind] ? kind : /과학|우주|science|space|physics|biology|chem/i.test(String(text || '')) ? 'sci' : /다큐|역사|미스터리|document|history|mystery/i.test(String(text || '')) ? 'doc' : 'edu';
 const remixShots = q => { const s = q.src, n = +q.len || s.script.length || (s.flow.length ? s.flow.length + 1 : 6); return Math.max(4, Math.min(8, n)); };
 const remixNoCast = q => q.castMode === 'none' || (!q.src.cast.length && q.castMode !== 'add');
+const remixMy = q => String(q.topic || '').trim();
 function remixPrompt(q) {
-  const s = q.src, sim = SIMS.find(x => x[0] === (+q.sim || 2)) || SIMS[1], n = remixShots(q), noCast = remixNoCast(q), my = String(q.twist || '').trim() || String(settings.myBg || '').trim();
+  const s = q.src, sim = SIMS.find(x => x[0] === (+q.sim || 2)) || SIMS[1], n = remixShots(q), noCast = remixNoCast(q), my = remixMy(q), dir = String(settings.myBg || '').trim();
   const cast = s.cast.map((c, i) => { const lc = q['cl' + i] && charLib.find(x => x.id === q['cl' + i]), mine = String(q['c' + i] || '').trim(), kc = kindCode(c.kind);
     return `${i + 1}. ${c.role} [${KIND_EN[kc]}] original: "${[c.who, c.look].filter(Boolean).join(' / ') || 'no details'}" → ` + (lc ? `use the creator's saved character exactly: kind ${ckind(lc)}, Korean name "${lc.nk}", English name "${lc.ne}", Korean look "${lc.dk}", English look "${lc.de}"` : mine ? `the creator wants (may be Korean): ${mine}` : `invent a similar-but-different new ${KIND_EN[kc]} with the same role and charm`); });
-  const castText = noCast ? 'NO characters. Return chars as an empty array. Write shots that work with hands, objects, food, scenery or simple visuals only, never a person\'s or animal\'s face. Every line uses sp = -2 (narrator).'
+  const castText = noCast ? 'NO recurring characters. Return chars as an empty array. Visuals are footage-like scenes, diagrams, objects, places, animals in the wild or hands. Every line uses sp = -2 (narrator).'
     : s.cast.length ? `Return chars in this same order and keep each kind (a person stays a person, an animal stays an animal but another breed, color or species, a cartoon character stays an original cartoon character with a clearly different design).\n${cast.join('\n')}`
       : `The original has no characters, but the creator wants to add: ${String(q.cadd || '').trim() || 'one fitting lead character'}.`;
   return [`Adapt the hit short-form video below into ONE new original script.`,
     `Similarity: ${sim[2]}`,
     `Shots: exactly ${n} shots of 5 seconds.`,
+    `Topic: ${my ? `the creator chose this topic (may be Korean): ${my}` : (+q.sim || 2) === 1 ? 'the same topic as the original' : 'pick a fresh topic in the same field that has the same kind of surprise'}.`,
+    dir ? `The creator's channel direction (may be Korean): ${dir}.` : '',
     `Characters: ${castText}`,
-    s.audio ? `Original audio style: ${s.audio}. Match it (talking characters, narrator voice-over, or captions only).` : '',
-    `Creator's own material or setting (may be Korean): ${my || 'none; choose a fresh setting'}.`,
-    `Ending: original "${s.ending || 'unknown'}" → ${String(q.end || '').trim() || 'the same kind of payoff through a new event'}.`,
+    s.visual ? `Original visual style: ${s.visual}. Use a fitting style value.` : '',
+    `Ending: original "${s.ending || 'unknown'}" → ${String(q.end || '').trim() || 'the same kind of payoff for the new topic'}.`,
     q.more ? `Extra request (may be Korean): ${q.more}` : '',
     `Target audience: ${isEn() ? 'English-speaking viewers; the English fields are what gets filmed' : 'Korean viewers; the Korean fields are what gets filmed'}.`,
     AI_FIELDS, '',
     'ORIGINAL VIDEO (analysis in Korean; study it, do not copy it):',
-    JSON.stringify({ title: s.title, format: s.format, hook: s.hook, structure: s.structure, script: s.script, flow: s.flow, ending: s.ending, why_it_works: s.take, viewer_reaction: s.reaction })].filter(x => x !== '').join('\n');
+    JSON.stringify({ title: s.title, topic: s.topic, format: s.format, visual: s.visual, hook: s.hook, structure: s.structure, open_loop: s.loops, script: s.script, facts_claimed: s.facts, flow: s.flow, ending: s.ending, why_it_works: s.take, viewer_reaction: s.reaction })].filter(x => x !== '').join('\n');
 }
-const slimSrc = s => ({ id: s.id || '', url: s.url || '', thumb: s.thumb || '', title: s.title || '', from: s.from || '', format: s.format || '', audio: s.audio || '', hook: s.hook || '', cast: s.cast, script: s.script, flow: s.flow, ending: s.ending || '' });
+const slimSrc = s => ({ id: s.id || '', url: s.url || '', thumb: s.thumb || '', title: s.title || '', from: s.from || '', topic: s.topic || '', format: s.format || '', visual: s.visual || '', audio: s.audio || '', hook: s.hook || '', loops: s.loops || '', cast: s.cast, script: s.script, flow: s.flow, ending: s.ending || '' });
 function aiRemix(q) {
   const s = q.src;
   aiRun('AI가 내 대본으로 바꿔 쓰는 중', token => gemini(remixPrompt(q), S_SCRIPT, token), r => {
-    const p = newProject(fmtGuess(`${s.format} ${s.genre || ''}`, s.kind));
+    const p = newProject(fmtGuess(`${s.topic} ${s.genre || ''}`, s.kind));
     if (!applyScript(p, r)) return toast('AI 응답이 비어 있습니다');
     if (remixNoCast(q)) { p.chars = []; p.shots.forEach(x => { if (x.sp >= 0) x.sp = x.dk || x.de ? NARR : -1; }); }
     p.chars.forEach((c, i) => { const o = s.cast[i], lc = q['cl' + i] && charLib.find(x => x.id === q['cl' + i]);
       if (o) c.ok = [o.who, o.look].filter(Boolean).join(' · ');
       if (lc) Object.assign(c, { k: ckind(lc), nk: lc.nk, ne: lc.ne, dk: lc.dk, de: lc.de, imgFull: lc.imgFull || '', imgFace: lc.imgFace || '', libId: lc.id }); });
-    p.src = slimSrc(s); p.ai = true; draft = p; dirty = true; go('editor', {}, true); toast('내 대본으로 바꿨습니다 · 고친 뒤 원클릭 제작을 누르세요');
+    p.src = slimSrc(s); p.ai = true; draft = p; dirty = true; go('editor', {}, true); toast('내 대본으로 바꿨습니다 · 사실 확인 뒤 원클릭 제작을 누르세요');
   });
 }
 function aiIdea(fmt, idea) {
-  const f = FM[fmt] || FM.etc;
-  aiRun('AI가 새 대본을 쓰는 중', token => gemini(`Write one original short-form script.\nFormat: ${f.en} (${f.name}).\nCreator's idea (may be Korean): ${idea || 'none; invent a fresh premise that fits the format'}.\nCreator's usual material (may be Korean): ${String(settings.myBg || '').trim() || 'none'}.\nShots: 6 shots of 5 seconds.\n${AI_FIELDS}`, S_SCRIPT, token),
-    r => { const p = newProject(fmt); if (!applyScript(p, r)) return toast('AI 응답이 비어 있습니다'); p.ai = true; draft = p; dirty = true; go('editor', {}, true); toast('AI가 대본을 썼습니다'); });
+  const f = FM[fmt] || FM.edu;
+  aiRun('AI가 새 대본을 쓰는 중', token => gemini(`Write one original faceless ${f.en.toLowerCase()} short.\nField: ${f.en} (${f.name}).\nTopic or idea (may be Korean): ${idea || 'none; pick a surprising, verifiable topic that is trending in this field'}.\nThe creator's channel direction (may be Korean): ${String(settings.myBg || '').trim() || 'none'}.\nShots: 6 shots of 5 seconds.\nTarget audience: ${isEn() ? 'English-speaking viewers' : 'Korean viewers'}.\n${AI_FIELDS}`, S_SCRIPT, token),
+    r => { const p = newProject(fmt); if (!applyScript(p, r)) return toast('AI 응답이 비어 있습니다'); p.ai = true; draft = p; dirty = true; go('editor', {}, true); toast('AI가 대본을 썼습니다 · 사실 확인을 먼저 하세요'); });
 }
 function aiRewriteAll() {
   const p = draft;
-  aiRun('AI가 대본을 다시 쓰는 중', token => gemini(`Rewrite this short-form script to be far more gripping while keeping the same premise, the same number of shots (${p.shots.length}) and the same characters (same order, names and kinds) unless the request says otherwise.\nCreator's request (may be Korean): ${(p.aiReq || '').trim() || 'none'}.\n${AI_FIELDS}\nCurrent script JSON:\n${draftJson(p)}`, S_SCRIPT, token),
+  aiRun('AI가 대본을 다시 쓰는 중', token => gemini(`Rewrite this short-form script to be far more gripping and clearer while keeping the same topic, the facts that are correct, the same number of shots (${p.shots.length}) and the same characters (same order, names and kinds) unless the request says otherwise.\nCreator's request (may be Korean): ${(p.aiReq || '').trim() || 'none'}.\n${AI_FIELDS}\nCurrent script JSON:\n${draftJson(p)}\nCurrent facts: ${JSON.stringify((p.facts || []).map(x => x.f))}`, S_SCRIPT, token),
     r => { const undo = draftJson(p); if (!applyScript(p, r)) return toast('AI 응답이 비어 있습니다'); p._undo = undo; p.ai = true; dirty = true; render(); toast('AI가 대본을 다시 썼습니다'); });
 }
 function aiShot(i) {
@@ -530,14 +534,16 @@ function aiSubs(lang) {
 async function aiTest() {
   const keys = aiKeys(); if (!keys.length) return toast('API 키를 먼저 넣어 주세요');
   const box = $('#aiStatus'); if (box) box.innerHTML = `<span class="spin sm"></span> 키 ${keys.length}개 확인 중…`;
-  const lines = []; let models = [];
+  const lines = []; let models = [], allNames = [];
   for (let i = 0; i < keys.length; i++) {
     const r = await httpReq('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': keys[i] } });
     if (r.status === 200) {
       lines.push([true, `${i + 1}번 키 ${maskKey(keys[i])} 사용 가능`]);
-      if (!models.length) try { models = JSON.parse(r.text).models.filter(m => (m.supportedGenerationMethods || []).includes('generateContent')).map(m => m.name.replace(/^models\//, '')).filter(n => /^gemini/.test(n) && !/(embed|image|tts|audio|live|vision|aqa|robotics|computer)/i.test(n)); } catch (e) {}
+      if (!models.length) try { allNames = JSON.parse(r.text).models.map(m => m.name.replace(/^models\//, '')); models = JSON.parse(r.text).models.filter(m => (m.supportedGenerationMethods || []).includes('generateContent')).map(m => m.name.replace(/^models\//, '')).filter(n => /^gemini/.test(n) && !/(embed|image|tts|audio|live|vision|aqa|robotics|computer)/i.test(n)); } catch (e) {}
     } else lines.push([false, `${i + 1}번 키 ${maskKey(keys[i])}: ${aiErr(r, i)}`]);
   }
+  const tts = allNames.filter(n => /tts/i.test(n));
+  if (tts.length) settings.ttsModel = tts.find(n => /flash/.test(n) && !/lite/.test(n)) || tts[0];
   settings.aiModels = models.slice(0, 16);
   if (models.length && !models.includes(aiModel())) settings.aiModel = models.find(n => n === AI_DEFAULT_MODEL) || models.find(n => /flash/.test(n) && !/lite|preview|exp/.test(n)) || models[0];
   settings.aiCheck = lines; saveSettings(); render();
@@ -547,26 +553,30 @@ async function aiTest() {
 /* ----- 영상을 직접 보고 분석 (유튜브 주소를 Gemini에 넘긴다) ----- */
 const ytId = u => { const m = String(u || '').match(/(?:shorts\/|watch\?(?:.*&)?v=|youtu\.be\/|embed\/|live\/)([\w-]{11})/); return m ? m[1] : /^[\w-]{11}$/.test(String(u || '').trim()) ? String(u).trim() : ''; };
 const AN_SYS = 'You are a careful short-form video analyst. You watch the attached video fully and describe only what is actually in it. You answer in easy Korean. You never transcribe lines word for word; you write the gist in your own words. You never name real people or existing franchise characters; you describe looks instead. Output JSON only.';
-const S_ANALYSIS = { type: 'OBJECT', properties: { title_ko: S_STR, format: S_STR, audio: S_STR, hook: S_STR, structure: S_STR,
+const S_ANALYSIS = { type: 'OBJECT', properties: { title_ko: S_STR, topic: S_STR, format: S_STR, visual: S_STR, audio: S_STR, hook: S_STR, structure: S_STR, loops: S_STR,
   cast: S_ARR({ type: 'OBJECT', properties: { role: S_STR, kind: S_STR, who: S_STR, look: S_STR }, required: ['role', 'kind', 'who', 'look'] }),
   script: S_ARR({ type: 'OBJECT', properties: { t: S_STR, scene: S_STR, line: S_STR }, required: ['t', 'scene', 'line'] }),
-  flow: S_ARR(S_STR), ending: S_STR, take: S_STR }, required: ['title_ko', 'format', 'audio', 'hook', 'structure', 'cast', 'script', 'flow', 'ending', 'take'] };
+  facts: S_ARR(S_STR), flow: S_ARR(S_STR), ending: S_STR, take: S_STR }, required: ['title_ko', 'topic', 'format', 'visual', 'audio', 'hook', 'structure', 'loops', 'cast', 'script', 'facts', 'flow', 'ending', 'take'] };
 function aiAnalyze(id, done) {
-  aiRun('AI가 영상을 직접 보는 중', token => gemini(`붙인 유튜브 영상을 처음부터 끝까지 보고 아래 항목을 한국어로 채워라.
+  aiRun('AI가 영상을 직접 보는 중', token => gemini(`붙인 유튜브 영상을 처음부터 끝까지 보고 아래 항목을 한국어로 채워라. 교육·과학·다큐멘터리 정보형 숏폼으로 보고 분석한다.
 - title_ko: 이 영상을 한 줄로 부를 제목 (원래 제목을 그대로 옮기지 않는다)
-- format: 영상 종류 한 단어 (숏드라마/상황극/동물/애니메이션/썰·사연/정보/챌린지/기타)
-- audio: 소리 방식 (인물 대사 / 내레이션 / 자막만 / 음악만)
+- topic: 다루는 주제 한 줄
+- format: 구성 방식 한 단어 (질문 풀이/놀라운 사실/원리 해부/비교/순위/역사 이야기/실험/기타)
+- visual: 화면 방식 (실사 자료화면/3D 애니메이션/모션그래픽/일러스트/진행자 출연/자막 위주)
+- audio: 소리 방식 (내레이션 / 진행자 말 / 자막만 / 음악만)
 - hook: 첫 3초에 시선을 잡는 방식 한 줄
-- structure: 이야기 구조 (예: 무시 → 반전 → 사이다)
-- cast: 등장인물 0~4. kind 는 사람/동물/캐릭터/사물 중 하나. who 는 설정 한 줄, look 은 그림으로 다시 그릴 수 있는 외형 한 줄 (사람: 나이대·성별·머리·옷·인상 / 동물: 종·털색·크기·특징 / 캐릭터: 그림체·색·생김새). 등장인물이 없으면 빈 목록.
-- script: 장면 순서대로 4~8줄. t 는 시간 구간(예: 0~3초), scene 은 화면에 보이는 것, line 은 그 장면의 말·내레이션·자막 요지 (없으면 빈 문자열)
-- flow: 결말 직전까지의 흐름 3~5단계
-- ending: 결말 한 줄
+- structure: 구성 흐름 (예: 질문 → 흔한 오해 → 진짜 원리 → 반전 사실 → 한 줄 결론)
+- loops: 끝까지 보게 만드는 장치 한 줄
+- cast: 화면에 계속 나오는 진행자·동물·캐릭터·사물 0~4. kind 는 사람/동물/캐릭터/사물 중 하나, look 은 그림으로 다시 그릴 수 있는 외형 한 줄. 자료화면·풍경뿐이면 빈 목록.
+- script: 장면 순서대로 4~8줄. t 는 시간 구간(예: 0~3초), scene 은 화면에 보이는 것, line 은 그 장면의 내레이션·자막 요지 (없으면 빈 문자열)
+- facts: 영상이 전하는 핵심 사실 2~4개 요약 (맞는지 판단하지 않는다)
+- flow: 마무리 직전까지의 흐름 3~5단계
+- ending: 마무리 한 줄
 - take: 이 영상이 잘 되는 이유 한 줄`, S_ANALYSIS, token, { video: `https://www.youtube.com/watch?v=${id}`, sys: AN_SYS, temp: 0.3 }),
     r => { if (!r || !Array.isArray(r.script)) return toast('AI 응답이 비어 있습니다'); done(r); }, '영상 길이에 따라 30초~2분 걸립니다.');
 }
 
-/* ---------- 유행 리포트 (short-form-report 저장소가 매일 아침 인기 숏폼·숏드라마를 한국·해외로 수집·분석) ---------- */
+/* ---------- 유행 리포트 (short-form-report 저장소가 매일 아침 교육·과학·다큐 인기 쇼츠를 한국·해외로 수집·분석) ---------- */
 const TRENDS_BASE = 'https://raw.githubusercontent.com/happyfamily1984/short-form-report/main/trends/data/';
 const trendsBase = () => (String(settings.trendsUrl || '').trim() || TRENDS_BASE).replace(/\/?$/, '/');
 let trendsMem = null;
@@ -576,7 +586,7 @@ function saveTrends(t) {
   trendsMem = t; const keys = Object.keys(t.days).sort().reverse();
   for (let n = Math.min(keys.length, 3); n >= 1; n--) { const days = {}; keys.slice(0, n).forEach(k => { days[k] = t.days[k]; }); try { localStorage.setItem('sfm.trends', JSON.stringify({ dates: t.dates, days, fetched: t.fetched })); return; } catch (e) {} }
 }
-const ginfo = (an, g) => (an && an.genre_info && an.genre_info[g]) || { market: /^해외/.test(g || '') ? 'global' : 'kr', kind: /인기/.test(g || '') ? 'popular' : 'drama' };
+const ginfo = (an, g) => (an && an.genre_info && an.genre_info[g]) || { market: /^해외/.test(g || '') ? 'global' : 'kr', kind: /과학/.test(g || '') ? 'sci' : /다큐/.test(g || '') ? 'doc' : /교육/.test(g || '') ? 'edu' : 'old' };
 const slimVideo = v => ({ mkt: v.market || ginfo(null, v.genre).market, kind: v.kind || ginfo(null, v.genre).kind, id: v.video_id, url: v.url, thumb: /^https:\/\/i\.ytimg\.com\//.test(v.thumbnail || '') ? v.thumbnail : '', title: v.title, channel: v.channel, views: v.views, likes: v.likes, dur: v.duration_sec, genre: v.genre, rank: v.rank, vel: v.velocity, ratio: v.view_sub_ratio, comments: (v.top_comments || []).slice(0, 3).map(c => c.text) });
 const man = n => n >= 1e8 ? `${(n / 1e8).toFixed(1)}억` : n >= 1e4 ? `${(n / 1e4).toFixed(n >= 1e5 ? 0 : 1)}만` : String(n || 0);
 async function fetchTrends(date, quiet) {
@@ -609,13 +619,13 @@ const vaOf = (an, genre, id) => ((an && an.genres && an.genres[genre] && an.genr
 function srcFrom(va, extra) {
   va = va || {};
   const fl = Array.isArray(va.flow) && va.flow.length ? va.flow.map(noGuess).filter(Boolean) : splitFlow(va.structure);
-  return Object.assign({ format: noGuess(va.format), audio: noGuess(va.audio), hook: noGuess(va.hook), structure: noGuess(va.structure), take: noGuess(va.take), reaction: noGuess(va.reaction),
+  return Object.assign({ topic: noGuess(va.topic), visual: noGuess(va.visual), loops: noGuess(va.loops), facts: (Array.isArray(va.facts) ? va.facts : []).map(noGuess).filter(Boolean).slice(0, 5), format: noGuess(va.format), audio: noGuess(va.audio), hook: noGuess(va.hook), structure: noGuess(va.structure), take: noGuess(va.take), reaction: noGuess(va.reaction),
     cast: (Array.isArray(va.cast) ? va.cast : []).filter(c => c && (c.who || c.look || c.desc)).slice(0, 4).map(c => ({ role: noGuess(c.role) || '등장인물', kind: KINDS[kindCode(c.kind)][0], who: noGuess(c.who || c.desc), look: noGuess(c.look) })),
     script: (Array.isArray(va.script) ? va.script : []).filter(x => x && (x.scene || x.line)).slice(0, 10).map(x => ({ t: String(x.t || ''), scene: noGuess(x.scene), line: noGuess(x.line) })),
     flow: fl, ending: noGuess(va.ending), watched: !!va.watched }, extra || {});
 }
 const srcOfVideo = (v, va) => srcFrom(va, { id: v.id, url: v.url, thumb: v.thumb, title: (va && va.title_ko) || v.title, orig: v.title, genre: v.genre, kind: v.kind, from: `${String(v.genre || '').replace(/^해외\s*/, '')} · 조회 ${man(v.views)}`, dur: v.dur, views: v.views });
-const srcEmpty = s => !s.script.length && !s.flow.length && !s.cast.length && !s.hook;
+const srcEmpty = s => !s.script.length && !s.flow.length && !s.cast.length && !s.hook && !s.topic;
 
 /* ---------- 클링 자동 입력 (접근성 서비스) ---------- */
 /* 저장된 순서가 앱에 든 기본 순서보다 오래됐으면 기본 순서를 쓴다 */
@@ -727,6 +737,32 @@ window.onAppResume = () => {
 };
 
 /* ---------- 완성 영상 (클립 모으기 → 자막 새기기 → 업로드) ---------- */
+/* 내레이션: 내레이터(sp = -2)의 줄만 읽는다. 화면 속 인물의 대사는 클링 영상의 소리를 쓴다 */
+const voiceCfg = () => Object.assign({ on: true, rate: 1.05, pitch: 1, engine: 'gemini', name: 'Charon', tone: '' }, settings.voice || {});
+/* Gemini AI 목소리 (무료 키로 쓰는 TTS). 응답은 24kHz 16비트 모노 PCM */
+const GVOICES = [['Charon', '정보 전달 · 차분한 남성'], ['Kore', '단단한 · 또렷한 여성'], ['Orus', '묵직한 다큐 · 남성'], ['Aoede', '산뜻한 · 여성'], ['Puck', '경쾌한 · 남성'], ['Zephyr', '밝은 · 여성']];
+const TONE_DEFAULT = { kr: '차분하고 또렷한 다큐멘터리 내레이션 톤으로, 궁금증을 끌어올리듯 읽어 줘', en: 'Read in a calm, clear documentary narrator tone that builds curiosity' };
+const ttsModel = () => settings.ttsModel || 'gemini-2.5-flash-preview-tts';
+const voiceMem = {};
+async function geminiVoice(text, token) {
+  const vc = voiceCfg(), keys = aiKeys(), tone = String(vc.tone || '').trim() || TONE_DEFAULT[isEn() ? 'en' : 'kr'];
+  const key = `${ttsModel()}|${vc.name}|${tone}|${text}`; if (voiceMem[key]) return voiceMem[key];
+  const body = JSON.stringify({ contents: [{ parts: [{ text: `${tone}:\n${text}` }] }], generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: vc.name } } } } });
+  let last = '';
+  for (let tries = 0; tries < keys.length * 2 + 2; tries++) {
+    if (token.cancel) throw new Error('cancel');
+    const ki = (settings.aiNext || 0) % keys.length, k = keys[ki];
+    const r = await httpReq(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(ttsModel())}:generateContent`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': k }, body });
+    if (r.status === 200) { let d = ''; try { d = JSON.parse(r.text).candidates[0].content.parts.find(x => x.inlineData).inlineData.data; } catch (e) {} if (d) return (voiceMem[key] = d); last = '목소리 응답이 비어 있습니다.'; continue; }
+    if (r.status === 404) throw new Error(`음성 모델 "${ttsModel()}"을 찾을 수 없습니다. 설정에서 "키 확인·모델"을 눌러 음성 모델을 다시 찾으세요.`);
+    last = aiErr(r, ki);
+    if (r.status === 429) { settings.aiNext = (ki + 1) % keys.length; if (keys.length === 1 || tries >= keys.length) await new Promise(res => setTimeout(res, 20000)); continue; }
+    if (r.status >= 500 || r.status === 0) { await new Promise(res => setTimeout(res, 3000)); continue; }
+    throw new Error(last);
+  }
+  throw new Error(last || '목소리를 만들지 못했습니다.');
+}
+const narrOf = (p, i) => { const s = p.shots[i]; return s && s.sp === NARR ? String((isEn() ? s.de : s.dk) || '').trim() : ''; };
 let asm = null;            /* 진행 중인 합치기 상태 { state, progress, uri, error } */
 const thumbCache = {};
 const finOf = p => { p.fin = p.fin || { clips: [], burn: true, lang: '', size: 58, pos: -0.62, out: '' }; p.fin.stills = p.fin.stills || {}; return p.fin; };
@@ -761,21 +797,33 @@ function findClips(p, since, idx, auto) {
 }
 async function startAssemble(p, auto, skipCheck) {
   if (needPhone()) return;
-  const f = finOf(p), lines = subLines(p, finLang(p)) || [], items = [], subs = [], miss = [];
+  const f = finOf(p), lines = subLines(p, finLang(p)) || [], items = [], subs = [], miss = [], voice = [];
   if (!stillShots(p).length) {   /* 모두 영상 샷: 모은 클립을 순서대로 */
     if (!f.clips.length) return toast('먼저 영상 클립을 모으세요');
-    f.clips.forEach((c, i) => { items.push({ video: c.uri }); subs.push(f.burn ? (lines[i] || '') : ''); });
+    f.clips.forEach((c, i) => { items.push({ video: c.uri, ms: p.shots[i] ? (+p.shots[i].sec || 5) * 1000 : 0 }); subs.push(f.burn ? (lines[i] || '') : ''); voice.push(narrOf(p, i)); });
   } else {
     let k = 0;
     for (let i = 0; i < p.shots.length; i++) {
-      if (isVid(p, i)) { const c = clipOf(p, i) || f.clips.filter(x => x.shot == null)[k++]; if (!c) { miss.push(i + 1); continue; } items.push({ video: c.uri }); }
+      if (isVid(p, i)) { const c = clipOf(p, i) || f.clips.filter(x => x.shot == null)[k++]; if (!c) { miss.push(i + 1); continue; } items.push({ video: c.uri, ms: (+p.shots[i].sec || 5) * 1000 }); }
       else { const d = await imgGet(stillOf(p, i)); if (!d) { miss.push(i + 1); continue; } items.push({ image: d, ms: (+p.shots[i].sec || 5) * 1000 }); }
-      subs.push(f.burn ? (lines[i] || '') : '');
+      subs.push(f.burn ? (lines[i] || '') : ''); voice.push(narrOf(p, i));
     }
   }
   if (!items.length) return toast('장면 이미지나 영상 클립을 먼저 모으세요');
   if (miss.length && !auto && !skipCheck) return dialog(`샷 ${miss.join(', ')}번이 비어 있습니다`, '빈 샷을 빼고 만들까요? 장면 이미지는 ① 그록으로 만들거나 직접 첨부하고, 영상은 ② 클립에서 모을 수 있습니다.', [['취소', null], ['빼고 만들기', () => startAssemble(p, auto, true), 'pri']]);
-  const ok = window.AndroidBridge.assemble(JSON.stringify({ items, subs, burn: f.burn, size: f.size, pos: f.pos, title: T(p) }));
+  const vc = voiceCfg(), useVoice = vc.on && voice.some(Boolean);
+  let voicePcm = null;
+  if (useVoice && vc.engine === 'gemini' && aiKeys().length) {
+    voicePcm = await new Promise(res => {
+      const token = { cancel: false }, n = voice.filter(Boolean).length; let k = 0; layerActs = { c0: () => { token.cancel = true; res(undefined); } };
+      layer(`<div class="dialog" role="alertdialog" aria-label="AI 목소리 만드는 중"><span class="spin" aria-hidden="true"></span><h3>AI 목소리 만드는 중</h3><p id="vprog">Gemini · ${esc(vc.name)} · 0/${n}줄</p><div class="acts"><button class="btn" data-lact="c0">취소</button></div></div>`, true);
+      (async () => { const out = []; for (const line of voice) { if (!line) { out.push(''); continue; } out.push(await geminiVoice(line, token)); k++; const el = $('#vprog'); if (el) el.textContent = `Gemini · ${vc.name} · ${k}/${n}줄`; } return out; })()
+        .then(out => { if (token.cancel) return; closeLayer(); res(out); }, e => { if (token.cancel) return; closeLayer();
+          dialog('AI 목소리를 만들지 못했습니다', `${e.message}\n\n휴대폰 음성으로 대신 만들 수 있습니다.`, [['취소', () => res(undefined)], ['휴대폰 음성으로', () => res(null), 'pri']]); });
+    });
+    if (voicePcm === undefined) return;
+  }
+  const ok = window.AndroidBridge.assemble(JSON.stringify({ items, subs, burn: f.burn, size: f.size, pos: f.pos, title: T(p), voice: useVoice ? voice : null, voicePcm, voicePcmRate: 24000, voiceLang: isEn() ? 'en-US' : 'ko-KR', voiceRate: vc.rate, voicePitch: vc.pitch }));
   if (!ok) return toast('이미 영상을 만들고 있습니다');
   asm = { state: 'running', progress: 0, auto: !!auto, pid: p.id }; render();
 }
@@ -861,7 +909,7 @@ function oneClick() {
       kp.gen.length ? `클링으로 ${kp.gen.map(i => i + 1).join(', ')}번 샷 영상 만들기 · 약 ${kp.gen.length * KLING_COST}크레딧` : '',
       kp.get.length ? `${kp.get.map(i => i + 1).join(', ')}번 샷은 이미 생성 요청함 → 다시 만들지 않고 내려받기만` : '',
       kp.have.length ? `${kp.have.map(i => i + 1).join(', ')}번 샷 영상은 이미 있어 건너뜀` : '',
-      kp.need.length ? '생성이 끝나면 영상 내려받기 (몇 분 걸립니다)' : '', '이 앱으로 돌아와 이미지·영상을 잇고 자막 새기기', settings.upWay === 'pickle' ? '피클에게 영상과 업로드 지시 보내기' : '업로드할 앱을 고르는 창 열기'].filter(Boolean);
+      kp.need.length ? '생성이 끝나면 영상 내려받기 (몇 분 걸립니다)' : '', '이 앱으로 돌아와 이미지·영상을 잇고 내레이션·자막 넣기', settings.upWay === 'pickle' ? '피클에게 영상과 업로드 지시 보내기' : '업로드할 앱을 고르는 창 열기'].filter(Boolean);
     const resumed = doneSt || kp.have.length || kp.get.length;
     const go1 = () => dialog(resumed ? '이어서 제작합니다' : '원클릭 제작을 시작합니다', `${steps.map((t, n) => `${'①②③④⑤⑥⑦⑧'[n]} ${t}`).join('\n')}\n\n진행 중에는 화면을 만지지 마세요. 클링은 "비디오 생성·01, 720p · 5s"로 맞춰 두세요.`,
       [['취소', null], ['시작', () => { saveDraft(); if (need.length) startGrokStills(p, need, false); else startKlingStage(p); }, 'pri']]);
@@ -903,7 +951,7 @@ function tabFinish(p) {
   const clipRow = (c, i) => `<div class="row clip"><span class="cthumb">${on && vThumb(c.uri) ? `<img src="${vThumb(c.uri)}" alt="">` : ic('film')}</span><span class="grow"><b>${c.shot != null ? `${c.shot + 1}번 샷 · ${beatOf(p, c.shot)[0]}` : stills.length ? '샷 미지정 클립' : `샷 ${i + 1}${p.shots[i] ? ' · ' + beatOf(p, i)[0] : ''}`}</b><small>${esc(c.name || '')}${c.dur ? ` · ${Math.round(c.dur / 100) / 10}초` : ''}</small></span>
     <button class="ib sm" data-act="clipMove" data-i="${i}" data-d="-1" aria-label="위로">${ic('back')}</button><button class="ib sm" data-act="clipDel" data-i="${i}" aria-label="빼기">${ic('x')}</button></div>`;
   return `
-    <div class="card aicard kling"><div class="aih"><span class="glyph" style="--h:350">${ic('bolt')}</span><span class="grow"><b>원클릭 제작</b><small>그록 장면 이미지 → 클링 핵심 ${vidShots(p).length}샷(약 ${vidShots(p).length * KLING_COST}크레딧) → 자막 넣어 합치기 → ${settings.upWay === 'pickle' ? '피클에게 업로드 맡기기' : '업로드 창'}까지</small></span>${flowNow().verified ? '' : '<span class="tag warn">시험 중</span>'}</div>
+    <div class="card aicard kling"><div class="aih"><span class="glyph" style="--h:350">${ic('bolt')}</span><span class="grow"><b>원클릭 제작</b><small>그록 장면 이미지 → 클링 핵심 ${vidShots(p).length}샷(약 ${vidShots(p).length * KLING_COST}크레딧) → 내레이션·자막 넣어 합치기 → ${settings.upWay === 'pickle' ? '피클에게 업로드 맡기기' : '업로드 창'}까지</small></span>${flowNow().verified ? '' : '<span class="tag warn">시험 중</span>'}</div>
       <button class="btn pri block" data-act="oneClick" ${running ? 'disabled' : ''}>${ic('bolt')}원클릭 제작 시작</button>
       <p class="hint">중간에 멈추면 아래 ①~⑤를 하나씩 눌러 이어 할 수 있습니다. 등장인물 사진을 먼저 넣어 두면 생김새가 일정하게 나옵니다. 어느 샷을 영상으로 할지는 영상 탭의 "샷 구성"에서 바꿉니다.</p></div>
     ${stills.length ? `<div class="sec">${h2('camera', `① 장면 이미지 ${stills.filter(i => stillOf(p, i)).length}/${stills.length} (그록 · 무료)`)}
@@ -918,6 +966,14 @@ function tabFinish(p) {
       ${vidShots(p).some(i => sentOf(p, i) && !clipOf(p, i)) ? `<p class="hint">이미 클링에 생성 요청한 샷은 원클릭을 다시 눌러도 새로 만들지 않고 내려받기만 합니다. 다시 생성하려면 <button class="pbtn" data-act="sentReset">${ic('refresh')}생성 기록 지우기</button></p>` : ''}` : ''}
       <div class="aiacts">${stills.length && klingPlan(p).need.length ? `<button class="btn sm" data-act="klingFetchOnly">${ic('download')}클링에서 내려받기만</button>` : ''}<button class="btn sm blue" data-act="findClips">${ic('search')}방금 받은 영상 찾기</button><button class="btn sm" data-act="pickClips">${ic('folder')}직접 고르기</button></div>
       ${f.clips.length ? `<div class="list">${f.clips.map(clipRow).join('')}</div>` : '<p class="hint">클링에서 내려받은 영상을 찾거나 직접 골라 샷 순서대로 놓으세요. "방금 받은 영상 찾기"는 최근 30분 안에 저장된 영상을 오래된 것부터 가져옵니다.</p>'}</div>
+    <div class="sec">${h2('mic', '내레이션 음성')}
+      ${(() => { const vc = voiceCfg(), n = p.shots.filter((x, i) => narrOf(p, i)).length, g = vc.engine === 'gemini'; return `${seg('p_von', [[1, '음성 넣기'], [0, '음성 없이']], vc.on ? 1 : 0)}
+      ${vc.on ? `<span class="lab">목소리</span>${seg('p_veng', [['gemini', 'Gemini AI 목소리'], ['device', '휴대폰 음성']], vc.engine)}
+      ${g ? `<div class="chips wrap">${GVOICES.map(([id, d]) => `<button class="chip ${vc.name === id ? 'on' : ''}" data-act="vname" data-v="${id}">${id}<small class="cs">${d}</small></button>`).join('')}</div>
+        <div class="field"><label>${ic('edit')}읽는 말투</label><input class="in" data-vtone="1" value="${esc(vc.tone || '')}" placeholder="${esc(TONE_DEFAULT[isEn() ? 'en' : 'kr'])}" aria-label="읽는 말투"></div>`
+        : `<span class="lab">읽는 속도</span>${seg('p_vrate', [['0.95', '천천히'], ['1.05', '보통'], ['1.2', '빠르게']], String(vc.rate))}`}` : ''}
+      <p class="hint">${!vc.on ? '소리 없이 자막만 넣습니다.' : g ? `내레이션 ${n}줄을 설정의 Gemini 키로 한 줄씩 읽어 샷마다 맞춰 넣습니다. 무료 키는 수익 채널에도 쓸 수 있지만, 입력한 문장이 Google 서비스 개선에 쓰일 수 있습니다. 한도에 걸리면 잠시 기다렸다 이어서 만듭니다.` : `내레이션 ${n}줄을 휴대폰 음성 엔진으로 읽어 넣습니다. 돈이 들지 않지만 기계음에 가깝습니다.`}${vc.on ? ' 화면 속 등장인물의 대사는 클링 영상의 소리를 그대로 씁니다.' : ''}${vc.on && !n ? ' 지금 대본에 내레이션 줄이 없습니다. 대본 탭에서 말하는 쪽을 "내레이션"으로 고르세요.' : ''}</p>
+      ${vc.on && (g ? aiKeys().length : Native.has() && window.AndroidBridge.ttsTest) ? `<button class="btn sm" data-act="ttsTest">${ic('play')}목소리 미리 듣기</button>` : ''}`; })()}</div>
     <div class="sec">${h2('caption', `${num(2)} 자막`)}
       ${seg('p_burn', [[1, '자막 넣기'], [0, '자막 없이']], f.burn ? 1 : 0)}
       ${f.burn ? `<div class="chips">${SUB_LANGS.filter(([id]) => subLines(p, id)).map(([id, n]) => `<button class="chip ${lang === id ? 'on' : ''}" data-act="finSet" data-k="lang" data-v="${id}">${n}</button>`).join('')}</div>
@@ -972,8 +1028,8 @@ function scoreOf(p) {
   const lineOk = s => m === 'kr' ? (s.dk || '').length <= 30 : words(s.de) <= 15, actOk = s => m === 'kr' ? (s.ak || '').length <= 60 : words(s.ae) <= 26;
   const same = p.src && p.src.title && [p.tk, p.te].some(x => String(x || '').trim() === String(p.src.title).trim());
   const items = [
-    [!!(p.shots[0] && (p.shots[0]['a' + k] || '').length >= 8), '1샷이 설명 없이 바로 시작한다 (훅)', '첫 샷에 가장 궁금한 장면을 구체적으로 적으세요.'],
-    [spoken >= Math.ceil(p.shots.length / 2), '말이 있는 샷이 절반 이상이다', '대사나 내레이션이 너무 적으면 내용이 전달되지 않습니다.'],
+    [!!(p.shots[0] && (p.shots[0]['a' + k] || '').length >= 8 && (p.shots[0]['d' + k] || '').length >= 4), '1샷이 질문이나 놀라운 사실로 시작한다 (훅)', '첫 샷에 가장 신기한 장면과 첫 문장을 넣으세요.'],
+    [spoken >= p.shots.length - 1, '거의 모든 샷에 내레이션이 있다', '정보형 영상은 말이 끊기면 바로 넘깁니다.'],
     [p.shots.every(lineOk), '모든 말이 5초 안에 끝난다', m === 'kr' ? '한 줄은 28자 이내로 줄이세요.' : '한 줄은 14단어 이내로 줄이세요.'],
     [p.shots.every(actOk), '샷마다 동작이 하나다', '화면 묘사가 길면 5초 영상에 담기지 않습니다.'],
     [p.shots.every(s => s['p' + k] && s['a' + k]), '모든 샷에 장소와 화면 묘사가 있다', '비어 있는 샷을 채우세요.'],
@@ -982,6 +1038,7 @@ function scoreOf(p) {
     [p.shots.length >= 4 && p.shots.length <= 8, '샷이 4~8개다', '한 편은 6샷(30초)이 가장 안정적입니다.'],
     [tot >= 15 && tot <= 60, '전체 길이가 15~60초다', `지금 ${tot}초입니다.`],
     [!same, '원본과 제목이 다르다', '원본 제목을 그대로 쓰면 안 됩니다. 제목을 고치세요.'],
+    [!(p.facts || []).length || (p.facts || []).every(x => x.ok), '핵심 사실을 모두 확인했다', '대본 탭의 사실 확인에서 하나씩 검색해 체크하세요.'],
     [!BAN_RE.test(p.shots.map(s => s.ak + s.ae + s.dk + s.de).join(' ')), '생성이 거부될 표현이 없다', '폭력·흉기·노출 표현을 순화하세요.']
   ].map(([ok, label, tip]) => ({ ok, label, tip }));
   return { items, score: Math.round(items.filter(i => i.ok).length / items.length * 100) };
@@ -1049,56 +1106,55 @@ V.chars = p => {
 const kindChips = cast => { const n = {}; (cast || []).forEach(c => { const k = kindCode(c.kind); n[k] = (n[k] || 0) + 1; }); return Object.entries(n).map(([k, c]) => `<span class="tag k${k}">${ic(KINDS[k][1])}${KINDS[k][0]}${c > 1 ? ' ' + c : ''}</span>`).join(''); };
 const thumb = (url, icon, hue) => `<span class="thumb" style="--h:${hue == null ? 255 : hue}">${ic(icon || 'film')}${url ? `<img src="${esc(url)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}</span>`;
 function feedCard(v, va, n) {
-  const ko = va && va.title_ko, cast = va && Array.isArray(va.cast) ? va.cast : null, fm = FM[fmtGuess(`${(va && va.format) || ''} ${v.genre}`, v.kind)];
+  const ko = va && va.title_ko, fm = FM[v.kind] || FM[fmtGuess(v.genre, v.kind)], topic = va && noGuess(va.topic);
   return `<article class="card fv"><button class="fthumb" data-act="trendVideo" data-id="${esc(v.id)}" aria-label="내 것으로 바꾸기">${thumb(v.thumb, fm.icon, fm.hue)}<span class="rk num ${n <= 3 ? 'top' : ''}">${n}</span><span class="dur num">${v.dur || '?'}초</span></button>
-    <div class="fbody"><b class="ft">${esc(ko || v.title)}</b>
+    <div class="fbody"><b class="ft">${esc(ko || v.title)}</b>${topic && topic !== ko ? `<small class="ftopic">${esc(topic)}</small>` : ''}
       <small class="num">${ic('eye')}${man(v.views)}${v.vel ? `<i>${ic('rocket')}하루 +${man(v.vel)}</i>` : ''}</small>
-      <div class="ftags"><span class="tag" style="--h:${fm.hue}">${ic(fm.icon)}${esc(noGuess(va && va.format) || fm.name)}</span>${cast ? (cast.length ? kindChips(cast) : '<span class="tag mut">등장인물 없음</span>') : ''}${va && va.watched ? `<span class="tag ok">${ic('eye')}직접 봄</span>` : ''}</div>
+      <div class="ftags"><span class="tag" style="--h:${fm.hue}">${ic(fm.icon)}${fm.name}</span>${va && va.format ? `<span class="tag mut">${esc(noGuess(va.format))}</span>` : ''}${va && va.visual ? `<span class="tag mut">${esc(noGuess(va.visual))}</span>` : ''}${va && va.watched ? `<span class="tag ok">${ic('eye')}직접 봄</span>` : ''}</div>
       <div class="facts"><button class="btn sm pri" data-act="trendVideo" data-id="${esc(v.id)}">${ic('sparkle')}내 것으로 바꾸기</button><button class="ib sm" data-act="openUrl" data-u="${esc(v.url || '')}" aria-label="원본 영상 보기">${ic('play')}</button></div></div></article>`;
 }
 V.home = p => {
-  const t = trends(), date = (p.d && t.days[p.d] ? p.d : '') || t.dates.find(d => t.days[d]) || '', day = t.days[date], an = day && day.analysis, vids = (day && day.videos) || [];
-  const kind = p.k || (vids.some(v => v.kind === 'popular') || !vids.length ? 'popular' : 'drama'), mk = p.mk === 'global' ? 'global' : 'kr';
-  const pool = vids.filter(v => v.kind === kind && v.mkt === mk), genres = [...new Set(pool.map(v => v.genre))], g = genres.includes(p.g) ? p.g : '';
-  const short = x => String(x).replace(/^해외\s*/, '').replace(/^인기\s*·\s*/, '');
-  const list = pool.filter(v => !g || v.genre === g).sort((a, b) => p.so === 'vel' ? (b.vel || 0) - (a.vel || 0) : (b.views || 0) - (a.views || 0)).slice(0, 40);
+  const t = trends(), date = (p.d && t.days[p.d] ? p.d : '') || t.dates.find(d => t.days[d]) || '', day = t.days[date], an = day && day.analysis, vids = ((day && day.videos) || []).filter(v => FM[v.kind]);
+  const fld = FM[p.f] ? p.f : '', mk = p.mk === 'global' ? 'global' : 'kr';
+  const list = vids.filter(v => (!fld || v.kind === fld) && v.mkt === mk).sort((a, b) => p.so === 'vel' ? (b.vel || 0) - (a.vel || 0) : (b.views || 0) - (a.views || 0)).slice(0, 40);
   const sm = (an && an.summary) || {}, clean = x => esc(noGuess(x)), recent = [...projects].sort((a, b) => b.updated - a.updated).slice(0, 2);
-  const flowItems = kind === 'popular' ? (sm.popular || []).map(x => ['인기 숏폼', x]) : [...(sm.common || []).map(c => [c.name, c.detail]), ...(sm.rising || []).map(x => ['뜨는 형식', x])];
-  const pt = g && an && an.genres && an.genres[g] && an.genres[g].patterns;
+  const flowItems = [...(sm.common || []).map(c => [c.name, c.detail]), ...(sm.rising || []).map(x => ['뜨는 주제', x])];
+  const gname = fld ? (mk === 'global' ? '해외 ' : '') + FM[fld].name : '', pt = gname && an && an.genres && an.genres[gname] && an.genres[gname].patterns;
+  const ideas = (sm.ideas || []).filter(it => it && it.topic && (!fld || fmtGuess(it.field, '') === fld || String(it.field || '').includes(FM[fld].name)));
+  const old = !vids.length && day && (day.videos || []).length;
   return { nav: 'home', top: `<div class="brand"><img src="img/icon.png" alt="">숏폼 메이커</div>${modeSeg()}<button class="ib" data-act="go" data-v="settings" aria-label="설정">${ic('gear')}</button>`,
     html: `
     <section class="hero card">
-      <div class="ph-t"><span class="eyebrow">${ic('flame')}${date ? `${date.slice(5).replace('-', '/')} 유행 영상 ${vids.length}편` : '매일 아침 자동 수집'}</span><h2>뜨는 숏폼을<br><em>내 것</em>으로.</h2></div>${art('bolt', 350)}
+      <div class="ph-t"><span class="eyebrow">${ic('flame')}${date ? `${date.slice(5).replace('-', '/')} 교육·과학·다큐 인기 ${vids.length}편` : '매일 아침 자동 수집'}</span><h2>잘 되는 구성에<br><em>내 주제</em>를 얹는다.</h2></div>${art('bulb', 42)}
       <div class="go"><div class="search grow1">${ic('link')}<input class="in" id="link" type="url" inputmode="url" placeholder="유튜브 쇼츠 링크 붙여넣기" enterkeyhint="go" maxlength="200" aria-label="유튜브 링크"></div><button class="btn pri" data-act="linkGo">가져오기</button></div>
-      <p class="modehint">${ic('layers')}영상 고르기 → 내 것으로 바꾸기 → 원클릭 제작</p>
+      <p class="modehint">${ic('layers')}뜨는 영상 고르기 → 주제 바꾸기 → 사실 확인 → 원클릭 제작</p>
     </section>
     ${recent.length ? `<section class="sec">${h2('clock', '이어서 만들기', `<button class="pbtn" data-act="tab" data-v="library">전체 보기${ic('chevron')}</button>`)}<div class="list">${recent.map(x => projRow(x)).join('')}</div></section>` : ''}
     <section class="sec">${h2('trophy', '오늘 뜨는 영상', `<button class="pbtn blue" data-act="trendsFetch">${ic('refresh')}새로고침</button>`)}
-      <div class="segrow">${seg('p_k', [['popular', '인기 숏폼'], ['drama', '숏드라마']], kind)}${seg('p_mk', [['kr', '국내'], ['global', '해외']], mk)}</div>
-      ${genres.length > 1 ? `<div class="chips">${[['', '전체'], ...genres.map(x => [x, short(x)])].map(([v, n]) => `<button class="chip ${g === v ? 'on' : ''}" data-act="set" data-k="p_g" data-v="${esc(v)}">${esc(n)}</button>`).join('')}</div>` : ''}
-      ${t.dates.length > 1 || list.length ? `<div class="fbar">${t.dates.length > 1 ? `<select class="sel" data-act2="trendDay" aria-label="날짜">${t.dates.slice(0, 7).map(d => `<option value="${d}" ${d === date ? 'selected' : ''}>${d.slice(5).replace('-', '/')}</option>`).join('')}</select>` : ''}<span class="sp"></span><div class="seg mini">${[['', '조회수순'], ['vel', '급상승순']].map(([v, n]) => `<button class="${(p.so || '') === v ? 'on' : ''}" data-act="set" data-k="p_so" data-v="${v}">${n}</button>`).join('')}</div></div>` : ''}
-      ${mk === 'global' && list.length ? '<p class="hint">해외 영상은 제목과 대본을 한국어로 옮겨 보여 줍니다. 바꿔 쓸 때 국내용이면 한국 배경으로 옮겨 씁니다.</p>' : ''}
-      ${pt ? `<details class="more"><summary>${ic('bulb')}${esc(short(g))} 형식 요약</summary><div class="body kv">${[['제목', pt.title], ['길이', pt.length], ['이야기', pt.story], ['리듬', pt.rhythm]].filter(x => x[1]).map(([k, x]) => `<div class="item"><p><span class="lab">${k}</span><span class="pre">${clean(x)}</span></p></div>`).join('')}</div></details>` : ''}
-      ${!g && flowItems.length ? `<details class="more"><summary>${ic('bulb')}오늘의 흐름</summary><div class="body kv">${flowItems.map(([k, x]) => `<div class="item"><p><span class="lab">${esc(k)}</span><span class="pre">${clean(x)}</span></p></div>`).join('')}</div></details>` : ''}
+      <div class="chips">${[['', '전체', 'grid', 255], ...FORMATS.map(x => [x.id, x.name, x.icon, x.hue])].map(([v, n, i, h]) => `<button class="chip ${fld === v ? 'on' : ''}" style="--h:${h}" data-act="set" data-k="p_f" data-v="${v}">${ic(i)}${n} ${vids.filter(x => (!v || x.kind === v) && x.mkt === mk).length}</button>`).join('')}</div>
+      <div class="fbar">${seg('p_mk', [['kr', '국내'], ['global', '해외']], mk)}<span class="sp"></span>${t.dates.length > 1 ? `<select class="sel" data-act2="trendDay" aria-label="날짜">${t.dates.slice(0, 7).map(d => `<option value="${d}" ${d === date ? 'selected' : ''}>${d.slice(5).replace('-', '/')}</option>`).join('')}</select>` : ''}<div class="seg mini">${[['', '조회수'], ['vel', '급상승']].map(([v, n]) => `<button class="${(p.so || '') === v ? 'on' : ''}" data-act="set" data-k="p_so" data-v="${v}">${n}</button>`).join('')}</div></div>
+      ${mk === 'global' && list.length ? '<p class="hint">해외 영상은 제목과 대본을 한국어로 옮겨 보여 줍니다. 해외에서 먼저 뜬 주제를 국내에 먼저 가져오면 경쟁이 적습니다.</p>' : ''}
+      ${pt ? `<details class="more"><summary>${ic('bulb')}${esc(gname)} 형식 요약</summary><div class="body kv">${[['제목', pt.title], ['길이', pt.length], ['구성', pt.story], ['리듬', pt.rhythm]].filter(x => x[1]).map(([k, x]) => `<div class="item"><p><span class="lab">${k}</span><span class="pre">${clean(x)}</span></p></div>`).join('')}</div></details>` : ''}
+      ${!fld && flowItems.length ? `<details class="more"><summary>${ic('bulb')}오늘의 흐름</summary><div class="body kv">${flowItems.map(([k, x]) => `<div class="item"><p><span class="lab">${esc(k)}</span><span class="pre">${clean(x)}</span></p></div>`).join('')}</div></details>` : ''}
       ${list.length ? `<div class="feed">${list.map((v, i) => feedCard(v, vaOf(an, v.genre, v.id), i + 1)).join('')}</div>`
-        : `<div class="card empty"><b>${!day ? '아직 받은 유행 영상이 없습니다' : kind === 'popular' && !vids.some(v => v.kind === 'popular') ? '인기 숏폼이 아직 수집되지 않았습니다' : '이 조건에 맞는 영상이 없습니다'}</b>${!day ? '새로고침을 눌러 오늘 리포트를 받아오세요. 매일 아침 6시쯤 새로 올라옵니다.' : kind === 'popular' && !vids.some(v => v.kind === 'popular') ? '리포트 저장소의 인기 숏폼 수집이 반영된 다음 날 아침부터 보입니다. 그 전에는 숏드라마를 고르거나 위에 링크를 붙여 가져오세요.' : '국내·해외나 종류를 바꿔 보세요.'}${!day ? `<div style="margin-top:14px"><button class="btn sm blue" data-act="trendsFetch">${ic('refresh')}유행 영상 받아오기</button></div>` : ''}</div>`}
+        : `<div class="card empty"><b>${!day ? '아직 받은 유행 영상이 없습니다' : old ? '교육·과학·다큐 영상이 아직 수집되지 않았습니다' : '이 조건에 맞는 영상이 없습니다'}</b>${!day ? '새로고침을 눌러 오늘 리포트를 받아오세요. 매일 아침 6시쯤 새로 올라옵니다.' : old ? '리포트 저장소의 수집 분야가 바뀐 다음 날 아침부터 보입니다. 그 전에는 위에 링크를 붙여 가져오거나 아래 아이디어로 시작하세요.' : '분야나 국내·해외를 바꿔 보세요.'}${!day ? `<div style="margin-top:14px"><button class="btn sm blue" data-act="trendsFetch">${ic('refresh')}유행 영상 받아오기</button></div>` : ''}</div>`}
     </section>
-    ${kind === 'drama' && mk === 'kr' && !g && (sm.ideas || []).length ? `<section class="sec">${h2('sparkle', '오늘의 회차 아이디어')}
-      ${sm.ideas.map((it, i) => `<div class="card tv"><div class="tvh"><span class="grow"><b>${esc(noGuess(it.title))}</b><small>${esc(it.background || '')}${it.length ? ` · ${esc(it.length)}` : ''}</small></span></div>
-        <dl class="tvk">${it.hook ? `<dt>훅</dt><dd>${clean(it.hook)}</dd>` : ''}${it.structure ? `<dt>구조</dt><dd>${clean(it.structure)}</dd>` : ''}</dl>
-        <div class="aiacts"><button class="btn sm blue" data-act="trendIdea" data-i="${i}">${ic('sparkle')}이 아이디어로 만들기</button></div></div>`).join('')}</section>` : ''}` };
+    ${ideas.length ? `<section class="sec">${h2('sparkle', '오늘 만들 주제')}
+      ${ideas.map(it => { const fm = FM[fmtGuess(it.field, '')] || FM.edu, i = sm.ideas.indexOf(it); return `<div class="card tv"><div class="tvh"><span class="glyph" style="--h:${fm.hue}">${ic(fm.icon)}</span><span class="grow"><b>${esc(noGuess(it.title))}</b><small>${fm.name}${it.length ? ` · ${esc(it.length)}` : ''}</small></span></div>
+        <dl class="tvk">${it.hook ? `<dt>훅</dt><dd>${clean(it.hook)}</dd>` : ''}${it.structure ? `<dt>구성</dt><dd>${clean(it.structure)}</dd>` : ''}${it.why ? `<dt>지금 될 이유</dt><dd>${clean(it.why)}</dd>` : ''}</dl>
+        <div class="aiacts"><button class="btn sm blue" data-act="trendIdea" data-i="${i}">${ic('sparkle')}이 주제로 만들기</button></div></div>`; }).join('')}</section>` : ''}` };
 };
 
 V.make = p => {
-  const fm = p.fm || 'skit';
+  const fm = FM[p.fm] ? p.fm : 'edu';
   return { title: '새로 만들기', back: true, html: `
-    ${pageHead({ eyebrow: '목록에 없는 영상도 됩니다', eicon: 'link', title: '링크 하나면 됩니다', lead: '유튜브 쇼츠 링크를 붙이면 AI가 영상을 직접 보고 대본과 등장인물을 뽑은 뒤, 내 것으로 바꿔 씁니다.', icon: 'link', hue: 218 })}
+    ${pageHead({ eyebrow: '목록에 없는 영상도 됩니다', eicon: 'link', title: '링크 하나면 됩니다', lead: '유튜브 쇼츠 링크를 붙이면 AI가 영상을 직접 보고 구성과 장면별 대본을 뽑은 뒤, 내 주제로 바꿔 씁니다.', icon: 'link', hue: 218 })}
     <div class="card aicard"><div class="field"><label for="link">${ic('link')}유튜브 링크</label><input class="in" id="link" type="url" inputmode="url" data-p="link" value="${esc(p.link || '')}" placeholder="https://youtube.com/shorts/..." maxlength="200"></div>
       <button class="btn pri block" data-act="linkGo">${ic('eye')}${aiKeys().length ? '영상 가져와서 분석하기' : 'API 키 넣으러 가기'}</button>
       <p class="hint">공개된 영상만 볼 수 있습니다. 내 Gemini 키로 분석하며 30초~2분 걸립니다.</p></div>
-    <div class="sec">${h2('sparkle', '아이디어로 새로 쓰기')}
+    <div class="sec">${h2('sparkle', '주제로 새로 쓰기')}
       <div class="chips wrap">${FORMATS.map(t => `<button class="chip ${fm === t.id ? 'on' : ''}" style="--h:${t.hue}" data-act="set" data-k="p_fm" data-v="${t.id}">${ic(t.icon)}${t.name}</button>`).join('')}</div>
-      <div class="field"><textarea class="in" rows="3" data-p="idea" aria-label="아이디어" placeholder="예: 간식을 숨겨 놓고 시치미 떼는 강아지">${esc(p.idea || '')}</textarea></div>
+      <div class="field"><textarea class="in" rows="3" data-p="idea" aria-label="주제" placeholder="${esc(FM[fm].ex)}">${esc(p.idea || '')}</textarea></div>
       <button class="btn blue block" data-act="ideaGo">${ic('sparkle')}대본 만들기</button>
       <button class="btn block" data-act="blankNew">${ic('edit')}빈 대본으로 직접 쓰기</button></div>` };
 };
@@ -1118,13 +1174,21 @@ function shotCard(p, i, start) {
       ${en && s.sp !== -1 ? `<div class="ko"><span>대사 한국어</span><textarea rows="1" class="ag" data-sf="${i}:dk" aria-label="대사 한국어">${esc(s.dk)}</textarea></div>` : ''}
     </div></div>`;
 }
+function factBox(p) {
+  const fx = p.facts || [], done = fx.filter(x => x.ok).length;
+  return `<div class="sec">${h2('checkc', `사실 확인 ${done}/${fx.length}`, `<button class="pbtn" data-act="factAdd">${ic('plus')}추가</button>`)}
+    ${fx.length ? `<div class="card facts-c">${fx.map((x, i) => `<div class="fact ${x.ok ? 'ok' : ''}"><button class="ck ${x.ok ? 'on' : ''}" data-act="factOk" data-i="${i}" aria-label="확인함">${ic('check')}</button><textarea class="ag" rows="1" data-fact="${i}" aria-label="사실 ${i + 1}">${esc(x.f)}</textarea><button class="ib sm" data-act="factSearch" data-i="${i}" aria-label="검색해서 확인">${ic('search')}</button><button class="ib sm" data-act="factDel" data-i="${i}" aria-label="빼기">${ic('x')}</button></div>`).join('')}</div>
+    <p class="hint">돋보기를 누르면 검색 결과가 열립니다. 믿을 만한 출처(교과서, 기관, 백과사전)에서 확인되면 체크하세요. 확인되지 않는 주장은 대본에서 빼거나 "~라는 연구가 있다"로 낮추세요.</p>`
+      : `<div class="card empty"><b>확인할 사실이 없습니다</b>AI로 바꿔 쓴 대본은 핵심 주장을 여기에 모아 줍니다. 직접 쓴 대본이면 "추가"로 넣으세요.</div>`}</div>`;
+}
 function tabScript(p) {
   const sc = scoreOf(p), k = sfx(), en = isEn(); let t = 0;
   return `
     <div class="stats num"><div class="stat t1"><span class="v">${ic('film')}${p.shots.length}샷</span><small>샷 수</small></div><div class="stat t2"><span class="v">${ic('clock')}${totalSec(p)}초</span><small>전체 길이</small></div><div class="stat t3"><span class="v">${ic('checkc')}${sc.score}점</span><small>완성도</small></div></div>
     ${p.src && (p.src.title || p.src.url) ? `<div class="card srcc sm">${thumb(p.src.thumb, 'film')}<div class="grow"><span class="eyebrow">${ic('trophy')}원본 · ${esc(p.src.from || '가져온 영상')}</span><b>${esc(p.src.title || '')}</b></div>${p.src.url ? `<button class="ib" data-act="openUrl" data-u="${esc(p.src.url)}" aria-label="원본 영상 보기">${ic('play')}</button>` : ''}</div>` : ''}
+    ${factBox(p)}
     <div class="card aicard"><div class="aih"><span class="glyph" style="--h:262">${ic('sparkle')}</span><span class="grow"><b>AI로 다시 쓰기</b><small>${aiKeys().length ? `Gemini · ${esc(aiModel())} · 키 ${aiKeys().length}개` : '설정에서 Gemini API 키를 넣으면 쓸 수 있습니다'}</small></span>${p.ai ? `<span class="tag pur">AI 작성</span>` : ''}</div>
-      ${aiKeys().length ? `<input class="in" id="ai_req" data-pf="aiReq" value="${esc(p.aiReq || '')}" placeholder="요청 (선택) 예: 배경을 캠핑장으로, 끝을 더 웃기게">` : ''}
+      ${aiKeys().length ? `<input class="in" id="ai_req" data-pf="aiReq" value="${esc(p.aiReq || '')}" placeholder="요청 (선택) 예: 더 쉽게, 첫 문장을 더 세게">` : ''}
       <div class="aiacts">${p._undo ? `<button class="btn sm" data-act="aiUndo">${ic('back')}AI 전으로</button>` : ''}<button class="btn sm" data-act="${aiKeys().length ? 'aiSync' : 'settings'}">${ic('globe')}${en ? '한국어판에 반영' : '영어판에 반영'}</button><button class="btn sm blue" data-act="${aiKeys().length ? 'aiAll' : 'settings'}">${ic('sparkle')}${aiKeys().length ? '전체 다시 쓰기' : 'API 키 넣기'}</button></div>
       <p class="hint">${en ? '영어 칸이 프롬프트에 들어갑니다. 영어를 고친 뒤 "한국어판에 반영"을 누르면 한국어 설명도 맞춰집니다.' : '한국어 칸이 프롬프트에 들어갑니다. 해외용으로도 쓸 대본이면 고친 뒤 "영어판에 반영"을 누르세요.'}</p></div>
     <div class="sec beats" id="beats">${p.shots.map((s, i) => { const a = t; t += (+s.sec || 5); return shotCard(p, i, a); }).join('')}
@@ -1204,33 +1268,33 @@ V.editor = () => {
 };
 
 V.remix = p => {
-  const s = p.src, sim = +p.sim || 2, noCast = remixNoCast(p), n = remixShots(p);
+  const s = p.src, sim = +p.sim || 2, noCast = remixNoCast(p), n = remixShots(p), fm = FM[s.kind] || FM[fmtGuess(`${s.topic} ${s.genre || ''}`, s.kind)];
   const ko = s.orig && s.orig !== s.title;
-  return { title: '내 것으로 바꾸기', back: true, flush: true, html: `
-    <div class="card srcc">${thumb(s.thumb, 'film')}<div class="grow"><span class="eyebrow">${ic('trophy')}${esc(s.from || '가져온 영상')}</span><b>${esc(s.title || '제목 없음')}</b>${ko ? `<small class="orig">${esc(s.orig)}</small>` : ''}
-      <div class="ftags">${s.format ? `<span class="tag">${esc(s.format)}</span>` : ''}${s.audio ? `<span class="tag mut">${esc(s.audio)}</span>` : ''}${s.watched ? `<span class="tag ok">${ic('eye')}영상을 직접 보고 적음</span>` : s.id && !srcEmpty(s) ? '<span class="tag warn">제목·댓글로 추정</span>' : ''}</div>
+  return { title: '내 주제로 바꾸기', back: true, flush: true, html: `
+    <div class="card srcc">${thumb(s.thumb, fm.icon, fm.hue)}<div class="grow"><span class="eyebrow">${ic('trophy')}${esc(s.from || '가져온 영상')}</span><b>${esc(s.title || '제목 없음')}</b>${ko ? `<small class="orig">${esc(s.orig)}</small>` : ''}
+      <div class="ftags"><span class="tag" style="--h:${fm.hue}">${ic(fm.icon)}${fm.name}</span>${s.format ? `<span class="tag mut">${esc(s.format)}</span>` : ''}${s.visual ? `<span class="tag mut">${esc(s.visual)}</span>` : ''}${s.watched ? `<span class="tag ok">${ic('eye')}영상을 직접 보고 적음</span>` : s.id && !srcEmpty(s) ? '<span class="tag warn">제목·댓글로 추정</span>' : ''}</div>
       <div class="aiacts">${s.url ? `<button class="btn sm" data-act="openUrl" data-u="${esc(s.url)}">${ic('play')}원본 보기</button>` : ''}${s.id && !s.watched ? `<button class="btn sm blue" data-act="analyzeSrc">${ic('eye')}AI가 직접 보고 분석</button>` : ''}</div></div></div>
-    ${srcEmpty(s) ? `<div class="card empty"><b>아직 이 영상의 분석이 없습니다</b>"AI가 직접 보고 분석"을 누르면 장면별 대본과 등장인물을 뽑아 옵니다.</div>` : `
-    ${s.hook ? `<div class="card hookc"><span class="lab">${ic('flame')}원본의 훅</span><p>${esc(s.hook)}</p>${s.take ? `<span class="lab">${ic('bulb')}잘 되는 이유</span><p>${esc(s.take)}</p>` : ''}</div>` : ''}
-    <div class="sec">${h2('list', s.script.length ? `원본 대본 ${s.script.length}장면` : '원본 흐름')}
+    ${srcEmpty(s) ? `<div class="card empty"><b>아직 이 영상의 분석이 없습니다</b>"AI가 직접 보고 분석"을 누르면 구성과 장면별 대본을 뽑아 옵니다.</div>` : `
+    <div class="card hookc">${s.topic ? `<span class="lab">${ic('target')}원본 주제</span><p>${esc(s.topic)}</p>` : ''}${s.hook ? `<span class="lab">${ic('flame')}첫 3초 훅</span><p>${esc(s.hook)}</p>` : ''}${s.loops ? `<span class="lab">${ic('refresh')}끝까지 보게 하는 장치</span><p>${esc(s.loops)}</p>` : ''}${s.take ? `<span class="lab">${ic('bulb')}잘 되는 이유</span><p>${esc(s.take)}</p>` : ''}</div>
+    <div class="sec">${h2('list', s.script.length ? `원본 구성 ${s.script.length}장면` : '원본 흐름')}
       <ol class="scr">${s.script.length ? s.script.map(x => `<li><span class="t num">${esc(x.t)}</span><p>${esc(x.scene)}${x.line ? `<em>${esc(x.line)}</em>` : ''}</p></li>`).join('') : [...s.flow, s.ending].filter(Boolean).map((x, i) => `<li><span class="t num">${i + 1}</span><p>${esc(x)}</p></li>`).join('')}</ol>
-      ${s.ending && s.script.length ? `<p class="hint">결말: ${esc(s.ending)}</p>` : ''}</div>`}
+      ${s.ending && s.script.length ? `<p class="hint">마무리: ${esc(s.ending)}</p>` : ''}
+      ${s.facts && s.facts.length ? `<details class="more"><summary>${ic('checkc')}원본이 전한 사실 ${s.facts.length}</summary><div class="body"><ul class="flist">${s.facts.map(x => `<li>${esc(x)}</li>`).join('')}</ul><p class="hint">원본의 주장일 뿐 확인된 사실이 아닙니다. 그대로 쓰지 말고 내 대본의 사실 확인에서 다시 검증하세요.</p></div></details>` : ''}</div>`}
     <div class="sec">${h2('sparkle', '어떻게 바꿀까요')}
       <span class="lab">닮은 정도</span>${seg('p_sim', SIMS.map(x => [x[0], x[1]]), sim)}
-      <p class="hint">${['', '종류·등장인물 종류·배경은 비슷하게 두고 이름·생김새·사건·대사를 바꿉니다.', '훅과 장면 순서, 반전 자리는 살리고 배경·등장인물·사건을 새로 씁니다.', '훅 방식과 리듬만 빌리고 나머지는 모두 새로 씁니다.'][sim]}</p>
-      <div class="field"><label>${ic('edit')}내 소재·배경 (선택)</label><textarea class="in" rows="2" data-p="twist" placeholder="${esc(settings.myBg ? `비우면 설정의 내 소재: ${settings.myBg}` : '예: 배경을 편의점으로, 주인공은 야간 알바생')}">${esc(p.twist || '')}</textarea></div>
+      <p class="hint">${['', '같은 주제를 다른 문장·다른 예시·다른 화면으로 새로 씁니다.', '구성·훅·반전 자리는 그대로, 같은 분야의 비슷한 다른 주제로 옮깁니다.', '훅 방식과 장면 순서만 빌리고 주제는 새로 고릅니다.'][sim]}</p>
+      <div class="field"><label>${ic('target')}내 주제 ${sim === 1 ? '(같은 주제면 비워 두세요)' : '(비우면 AI가 고릅니다)'}</label><textarea class="in" rows="2" data-p="topic" placeholder="${esc(fm.ex)}">${esc(p.topic || '')}</textarea></div>
       <span class="lab">길이</span><div class="chips">${[[0, `원본처럼 (${remixShots(Object.assign({}, p, { len: 0 }))}샷)`], [4, '20초'], [6, '30초'], [8, '40초']].map(([v, l]) => `<button class="chip ${(+p.len || 0) === v ? 'on' : ''}" data-act="set" data-k="p_len" data-v="${v}">${l}</button>`).join('')}</div></div>
-    <div class="sec">${h2('users', `등장인물${s.cast.length ? ` ${s.cast.length}` : ''}`)}
-      ${s.cast.length ? seg('p_castMode', [['keep', '비슷한 새 등장인물로'], ['none', '등장인물 없이']], noCast ? 'none' : 'keep') : seg('p_castMode', [['none', '등장인물 없이'], ['add', '등장인물 넣기']], noCast ? 'none' : 'add')}
-      ${!s.cast.length ? (noCast ? '<p class="hint">원본에 등장인물이 없습니다. 손·사물·풍경과 내레이션만으로 만듭니다.</p>' : `<div class="field"><textarea class="in" rows="2" data-p="cadd" aria-label="넣을 등장인물" placeholder="예: 말 많은 햄스터 한 마리">${esc(p.cadd || '')}</textarea></div>`)
-        : noCast ? '<p class="hint">원본의 등장인물을 빼고, 손·사물·풍경과 내레이션만으로 다시 씁니다.</p>' : `<div class="rxh"><span>원본</span><span>내 등장인물</span></div>${s.cast.map((c, i) => { const kc = kindCode(c.kind), lc = p['cl' + i] && charLib.find(x => x.id === p['cl' + i]);
+    <div class="sec">${h2('users', '화면에 나오는 진행자·캐릭터')}
+      ${s.cast.length ? seg('p_castMode', [['keep', '비슷한 새 캐릭터로'], ['none', '없이 (내레이션만)']], noCast ? 'none' : 'keep') : seg('p_castMode', [['none', '없이 (내레이션만)'], ['add', '캐릭터 넣기']], noCast ? 'none' : 'add')}
+      ${!s.cast.length ? (noCast ? '<p class="hint">자료화면 같은 장면과 내레이션만으로 만듭니다. 정보형 숏폼에서 가장 흔하고 만들기 쉬운 방식입니다.</p>' : `<div class="field"><textarea class="in" rows="2" data-p="cadd" aria-label="넣을 캐릭터" placeholder="예: 둥근 안경을 쓴 꼬마 과학자 캐릭터">${esc(p.cadd || '')}</textarea></div><p class="hint">매 편 같은 캐릭터가 나오면 채널을 기억하기 쉽습니다. 내 캐릭터에 저장해 두고 계속 쓰세요.</p>`)
+        : noCast ? '<p class="hint">원본의 진행자·캐릭터를 빼고 자료화면 같은 장면과 내레이션만으로 다시 씁니다.</p>' : `<div class="rxh"><span>원본</span><span>내 캐릭터</span></div>${s.cast.map((c, i) => { const kc = kindCode(c.kind), lc = p['cl' + i] && charLib.find(x => x.id === p['cl' + i]);
           return `<div class="rx"><div class="ro"><span class="lab">${ic(KINDS[kc][1])}${esc(c.role)} · ${KINDS[kc][0]}</span><p>${c.who ? esc(c.who) : '<i>설정 정보 없음</i>'}</p>${c.look ? `<p class="look">${esc(c.look)}</p>` : ''}</div>
             <div class="rm">${lc ? `<div class="mychar"><span class="lthumb">${lc.imgFull || lc.imgFace ? `<img data-img="${lc.imgFull || lc.imgFace}" alt="">` : ic(KINDS[ckind(lc)][1])}</span><span class="grow"><b>${esc(cname(lc))}</b><small>${esc(clook(lc) || lc.dk)}</small></span><button class="ib sm" data-act="remixLibX" data-i="${i}" aria-label="내 캐릭터 빼기">${ic('x')}</button></div>`
               : `<textarea class="in" rows="3" data-p="c${i}" placeholder="비우면 비슷하지만 다른 새 ${KINDS[kc][0]}" aria-label="${esc(c.role)} 바꿔 쓰기">${esc(p['c' + i] || '')}</textarea>`}
-              ${lc ? '' : `<button class="pbtn" data-act="remixLib" data-i="${i}">${ic('users')}내 캐릭터 쓰기</button>`}</div></div>`; }).join('')}
-          <p class="hint">사람은 사람, 동물은 동물, 캐릭터는 캐릭터로 종류를 지키되 생김새와 이름은 새로 만듭니다. 변환 뒤 등장인물 탭에서 이미지 프롬프트를 만들 수 있습니다.</p>`}</div>
-    <div class="sec"><div class="field"><label>${ic('flame')}결말 바꾸기 (선택)</label><textarea class="in" rows="2" data-p="end" placeholder="${esc(s.ending ? `원본: ${s.ending}` : '예: 마지막에 들켜서 같이 웃는다')}">${esc(p.end || '')}</textarea></div>
-      <div class="field"><label>${ic('edit')}더 바라는 점 (선택)</label><textarea class="in" rows="2" data-p="more" placeholder="예: 대사를 더 짧고 웃기게">${esc(p.more || '')}</textarea></div></div>
+              ${lc ? '' : `<button class="pbtn" data-act="remixLib" data-i="${i}">${ic('users')}내 캐릭터 쓰기</button>`}</div></div>`; }).join('')}`}</div>
+    <div class="sec"><div class="field"><label>${ic('flame')}마무리 바꾸기 (선택)</label><textarea class="in" rows="2" data-p="end" placeholder="${esc(s.ending ? `원본: ${s.ending}` : '예: 마지막에 다음 편 주제를 질문으로 던진다')}">${esc(p.end || '')}</textarea></div>
+      <div class="field"><label>${ic('edit')}더 바라는 점 (선택)</label><textarea class="in" rows="2" data-p="more" placeholder="예: 초등학생도 알아듣게 쉽게">${esc(p.more || '')}</textarea></div></div>
     <div class="sticky"><button class="btn pri" data-act="remixGo" ${srcEmpty(s) ? 'disabled' : ''}>${ic('sparkle')}${aiKeys().length ? `내 대본으로 변환 · ${n}샷 ${n * 5}초` : 'API 키 넣으러 가기'}</button></div>` };
 };
 
@@ -1261,9 +1325,9 @@ V.check = () => ({ title: '업로드 전 점검표', back: true, html: `${pageHe
 const setRow = (icon, hue, title, sub, act, right = chev) => `<button class="row" data-act="${act}"><span class="glyph" style="--h:${hue}">${ic(icon)}</span><span class="grow"><b>${title}</b>${sub ? `<small>${sub}</small>` : ''}</span>${right}</button>`;
 V.settings = () => ({ title: '설정', back: true, html: `
   <div class="sec"><span class="lab">${ic('globe')}제작 대상</span>${seg('mode', [['kr', '국내용 (한국어·한국 인물)'], ['en', '해외용 (영어·서양 인물)']], MODE())}</div>
-  <div class="sec"><span class="lab">${ic('edit')}내 소재·배경</span><input class="in" data-set="myBg" value="${esc(settings.myBg || '')}" placeholder="예: 배달 라이더, 40대 가장, 시골 강아지" aria-label="내 소재"><p class="hint">바꿔 쓸 때 소재 칸을 비우면 이 내용으로 옮겨 씁니다. 비워 두면 AI가 새 배경을 고릅니다.</p></div>
-  <div class="sec"><span class="lab">${ic('user')}인물 분위기</span><div class="card kv"><div class="frow wide"><span>국내용</span><input data-set="castKr" value="${esc(settings.castKr)}" aria-label="국내용 인물 분위기"></div><div class="frow wide"><span>해외용</span><input data-set="castEn" value="${esc(settings.castEn)}" aria-label="해외용 인물 분위기"></div></div><p class="hint">사람 등장인물의 이미지 프롬프트 앞에 붙는 말입니다. 동물·캐릭터에는 붙지 않습니다.</p></div>
-  <div class="sec"><span class="lab">${ic('sparkle')}기본 영상 스타일</span><div class="chips wrap">${Object.entries(STYLES).map(([id, v]) => `<button class="chip ${settings.style === id ? 'on' : ''}" data-act="set" data-k="style" data-v="${id}">${v[0]}</button>`).join('')}</div></div>
+  <div class="sec"><span class="lab">${ic('target')}내 채널 방향</span><input class="in" data-set="myBg" value="${esc(settings.myBg || '')}" placeholder="예: 우주·천문 위주, 초등학생도 알아듣게" aria-label="내 채널 방향"><p class="hint">AI가 주제를 고르고 대본을 쓸 때 늘 참고합니다. 한 채널에 한 분야가 가장 잘 됩니다.</p></div>
+  <div class="sec"><span class="lab">${ic('user')}인물 분위기</span><div class="card kv"><div class="frow wide"><span>국내용</span><input data-set="castKr" value="${esc(settings.castKr)}" aria-label="국내용 인물 분위기"></div><div class="frow wide"><span>해외용</span><input data-set="castEn" value="${esc(settings.castEn)}" aria-label="해외용 인물 분위기"></div></div><p class="hint">사람 진행자·인물의 이미지 프롬프트 앞에 붙는 말입니다. 동물·캐릭터에는 붙지 않습니다.</p></div>
+  <div class="sec"><span class="lab">${ic('sparkle')}기본 영상 스타일</span><div class="chips wrap">${[['', '분야에 맞게'], ...Object.entries(STYLES).map(([id, v]) => [id, v[0]])].map(([id, n]) => `<button class="chip ${(settings.style || '') === id ? 'on' : ''}" data-act="set" data-k="style" data-v="${id}">${n}</button>`).join('')}</div><p class="hint">채널 전체에서 한 스타일을 쓰면 썸네일만 보고도 내 채널을 알아봅니다. "분야에 맞게"는 교육=모션그래픽, 과학=3D 과학 애니, 다큐=실사 다큐로 고릅니다.</p></div>
   <div class="sec"><span class="lab">${ic('sun')}화면 테마</span>${seg('theme', [['light', '밝게'], ['dark', '어둡게'], ['system', '기기 설정']], settings.theme)}</div>
   <div class="sec">${h2('sparkle', 'AI (Gemini)')}<div class="card aibox">
     <div class="field"><label for="ai_keys">${ic('shield')}API 키 <span class="tag">${aiKeys().length}개</span></label><textarea class="in mono" id="ai_keys" rows="3" data-set="aiKeys" placeholder="AIza... , AIza... (쉼표로 여러 개)" autocomplete="off" autocapitalize="off" spellcheck="false">${esc(settings.aiKeys || '')}</textarea></div>
@@ -1271,7 +1335,7 @@ V.settings = () => ({ title: '설정', back: true, html: `
     <div class="field"><label for="ai_model">${ic('cpu')}모델</label><input class="in mono" id="ai_model" data-set="aiModel" value="${esc(aiModel())}" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
     ${(settings.aiModels || []).length ? `<div class="chips wrap">${settings.aiModels.map(m => `<button class="chip ${m === aiModel() ? 'on' : ''}" data-act="aiPick" data-v="${esc(m)}">${esc(m)}</button>`).join('')}</div>` : ''}
     <div class="aiacts"><button class="btn sm" data-act="aiClear">${ic('trash')}키 지우기</button><button class="btn sm blue" data-act="aiTest">${ic('checkc')}키 확인·모델</button></div>
-    <div id="aiStatus" class="aistat">${(settings.aiCheck || []).map(([ok, t]) => `<div class="${ok ? 'ok' : 'bad'}">${ic(ok ? 'checkc' : 'x')}<span>${esc(t)}</span></div>`).join('')}</div>
+    ${settings.ttsModel ? `<p class="hint">내레이션 음성 모델: ${esc(settings.ttsModel)}</p>` : ''}<div id="aiStatus" class="aistat">${(settings.aiCheck || []).map(([ok, t]) => `<div class="${ok ? 'ok' : 'bad'}">${ic(ok ? 'checkc' : 'x')}<span>${esc(t)}</span></div>`).join('')}</div>
     <p class="hint">키는 이 기기에만 저장되며, AI 기능을 쓸 때 대본 내용이나 영상 주소와 함께 Google Gemini API로만 전송됩니다.</p></div></div>
   <div class="sec">${h2('bolt', '자동 입력 (클링·그록·피클)')}${(() => { const info = kInfo(), gi = gInfo(), pi = pInfo(), f = flowNow(), g = grokFlow(), pf = pickleFlow(), nd = klingDumps().length, row = (ok, t) => `<div class="${ok ? 'ok' : 'bad'}">${ic(ok ? 'checkc' : 'x')}<span>${t}</span></div>`; return `<div class="card aibox">
     <div class="aistat">${Native.has() ? row(info && info.on, `접근성 서비스 ${info && info.on ? '켜짐' : '꺼짐'}`) + row(info && info.pkg, info && info.pkg ? `클링 앱: ${esc(info.label || info.pkg)}` : '클링 앱을 찾지 못함') + row(gi && gi.pkg, gi && gi.pkg ? `그록 앱: ${esc(gi.label || gi.pkg)}` : '그록 앱을 찾지 못함') + row(pi && pi.pkg, pi && pi.pkg ? `피클 앱: ${esc(pi.label || pi.pkg)}` : '피클 앱을 찾지 못함') + row(window.AndroidBridge.hasMediaPerm && window.AndroidBridge.hasMediaPerm(), '사진 접근 권한 (그록 이미지 가져오기)') : '<div class="bad">' + ic('x') + '<span>휴대폰 앱에서만 쓸 수 있습니다</span></div>'}
@@ -1319,7 +1383,7 @@ function importBackup(text) {
   try {
     const data = JSON.parse(text), arr = Array.isArray(data) ? data : data.projects; if (!Array.isArray(arr)) throw 0;
     const ids = new Set(projects.map(p => p.id)), cids = new Set(charLib.map(c => c.id)); let n = 0, m = 0;
-    arr.forEach(p => { if (p && p.id && !ids.has(p.id) && Array.isArray(p.shots) && Array.isArray(p.chars)) { if (!FM[p.fmt]) p.fmt = 'etc'; projects.push(p); n++; } });
+    arr.forEach(p => { if (p && p.id && !ids.has(p.id) && Array.isArray(p.shots) && Array.isArray(p.chars)) { if (!FM[p.fmt]) p.fmt = 'edu'; projects.push(p); n++; } });
     (data.chars || []).forEach(c => { if (c && c.id && !cids.has(c.id)) { charLib.push(c); m++; } });
     Object.entries(data.images || {}).forEach(([id, v]) => { if (typeof v === 'string' && v.startsWith('data:image')) imgPut(v, id).catch(() => {}); });
     saveProjects(); saveCharLib(); toast(n || m ? `작업 ${n}편, 캐릭터 ${m}명을 불러왔습니다` : '새로 추가할 내용이 없습니다'); render();
@@ -1351,8 +1415,8 @@ const A = {
   qclear: () => { cur().p.q = ''; render(); },
   open: d => { if (sel) { sel.has(d.id) ? sel.delete(d.id) : sel.add(d.id); return render(); } openProject(d.id); },
   trendDay: d => { const t = trends(); cur().p.d = d.v; if (!t.days[d.v]) fetchTrends(d.v); else render(true); },
-  trendIdea: d => { const t = trends(), day = t.days[cur().p.d || t.dates[0]], it = day && day.analysis && day.analysis.summary && day.analysis.summary.ideas[+d.i]; if (!it) return;
-    go('remix', { sim: 1, src: srcFrom(it, { title: noGuess(it.title), kind: 'drama', format: '숏드라마', from: `회차 아이디어${it.background ? ' · ' + it.background : ''}` }) }); },
+  trendIdea: d => { const t = trends(), day = t.days[cur().p.d || t.dates.find(x => t.days[x])], it = day && day.analysis && day.analysis.summary && day.analysis.summary.ideas[+d.i]; if (!it) return;
+    const k = fmtGuess(it.field, ''); go('remix', { sim: 1, topic: noGuess(it.topic), src: srcFrom(it, { title: noGuess(it.title), kind: k, format: '', from: `오늘 만들 주제 · ${FM[k].name}` }) }); },
   trendVideo: d => { const t = trends(), day = t.days[cur().p.d || t.dates.find(x => t.days[x])], v = day && day.videos.find(x => x.id === d.id); if (!v) return; go('remix', { src: srcOfVideo(v, vaOf(day.analysis, v.genre, v.id)) }); },
   linkGo: () => {
     const el = $('#link'), id = ytId(el && el.value); if (!id) return toast('유튜브 영상 링크를 붙여넣어 주세요');
@@ -1369,8 +1433,18 @@ const A = {
     const q = cur().p; sheet('이 자리에 쓸 내 캐릭터', charLib.map(lc => [`${cname(lc)} · ${KINDS[ckind(lc)][0]}${lc.imgFull || lc.imgFace ? ' · 사진 있음' : ''}`, clook(lc) || lc.dk, () => { q['cl' + d.i] = lc.id; render(); }])); },
   remixLibX: d => { delete cur().p['cl' + d.i]; render(); },
   remixGo: () => { if (!aiKeys().length) return go('settings'); aiRemix(cur().p); },
-  ideaGo: () => { if (!aiKeys().length) return go('settings'); const p = cur().p; aiIdea(p.fm || 'skit', (p.idea || '').trim()); },
+  ideaGo: () => { if (!aiKeys().length) return go('settings'); const p = cur().p; aiIdea(FM[p.fm] ? p.fm : 'edu', (p.idea || '').trim()); },
   charVar: d => aiCharVar(+d.i),
+  factOk: d => { const x = draft.facts[+d.i]; x.ok = !x.ok; touch(); render(); },
+  factDel: d => { draft.facts.splice(+d.i, 1); touch(); render(); },
+  factAdd: () => { draft.facts = draft.facts || []; draft.facts.push({ f: '', q: '', ok: false }); touch(); render(); const el = $$('[data-fact]').pop(); if (el) el.focus(); },
+  factSearch: d => { const x = draft.facts[+d.i]; if (!x) return; A.openUrl({ u: 'https://www.google.com/search?q=' + encodeURIComponent(x.q || x.f) }); },
+  vname: d => { settings.voice = Object.assign(voiceCfg(), { name: d.v }); saveSettings(); render(); },
+  ttsTest: () => { const p = draft, i = p.shots.findIndex((x, n) => narrOf(p, n)), vc = voiceCfg(), text = i >= 0 ? narrOf(p, i) : (isEn() ? 'This is how the narration will sound.' : '내레이션은 이런 목소리로 들어갑니다.');
+    if (vc.engine === 'gemini') return aiRun(`${vc.name} 목소리 만드는 중`, token => geminiVoice(text, token), d => { const b = atob(d), n = b.length, a = new Uint8Array(44 + n), v = new DataView(a.buffer), w = (o, t) => [...t].forEach((c, k) => a[o + k] = c.charCodeAt(0));
+      w(0, 'RIFF'); v.setUint32(4, 36 + n, true); w(8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, 24000, true); v.setUint32(28, 48000, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n, true);
+      for (let k = 0; k < n; k++) a[44 + k] = b.charCodeAt(k); new Audio(URL.createObjectURL(new Blob([a], { type: 'audio/wav' }))).play().catch(() => toast('소리를 재생하지 못했습니다')); }, '보통 5~15초 걸립니다.');
+    const r = window.AndroidBridge.ttsTest(text, isEn() ? 'en-US' : 'ko-KR', vc.rate, vc.pitch); if (r && r !== 'ok') dialog('목소리를 재생하지 못했습니다', r, [['닫기', null]]); },
   goOne: () => { cur().p.tab = 'finish'; render(true); oneClick(); },
   openUrl: d => { const u = d.u || ''; if (!/^https:\/\//.test(u)) return; if (Native.has() && window.AndroidBridge.openUrl) window.AndroidBridge.openUrl(u); else window.open(u, '_blank'); },
   set: d => {
@@ -1380,10 +1454,11 @@ const A = {
     else if (k === 'p_burn' && draft) { finOf(draft).burn = !!v; dirty = true; }
     else if (k === 'p_fsize' && draft) { finOf(draft).size = +v; dirty = true; }
     else if (k === 'p_fpos' && draft) { finOf(draft).pos = parseFloat(d.v); dirty = true; }
+    else if (k === 'p_von' || k === 'p_vrate' || k === 'p_veng') { settings.voice = Object.assign(voiceCfg(), k === 'p_von' ? { on: !!v } : k === 'p_veng' ? { engine: d.v } : { rate: parseFloat(d.v) }); saveSettings(); }
     else if (k.startsWith('p_')) { cur().p[k.slice(2)] = v; if (k === 'p_k' || k === 'p_mk') cur().p.g = ''; }
     render(k === 'p_tab');
   },
-  blankNew: () => { draft = newProject((cur().p && cur().p.fm) || 'etc'); dirty = true; go('editor', {}, true); },
+  blankNew: () => { draft = newProject((cur().p && cur().p.fm) || 'edu'); dirty = true; go('editor', {}, true); },
   save: () => { saveDraft(); render(); },
   copy: d => copyText(d.t),
   settings: () => go('settings'),
@@ -1504,6 +1579,8 @@ function onField(e) {
   else if (d.sf) { const [i, f] = d.sf.split(':'), s = draft.shots[+i]; s[f] = f === 'sp' ? +t.value : t.value; if (f === 'sp' && s.sp === -1) s.dk = s.de = ''; ['f', 'k'].forEach(x => ['kr', 'en'].forEach(m => delete draft.over[`${x}:${i}:${m}`])); touch(); grow(); if (isSel) render(); }
   else if (d.lc) { const [id, f] = d.lc.split(':'), c = charLib.find(x => x.id === id); if (c) { c[f] = t.value; c.updated = Date.now(); saveCharLib(); } grow(); if (isSel) render(); }
   else if (d.cf) { const [i, f] = d.cf.split(':'); draft.chars[+i][f] = t.value; if (f === 'k') ['full', 'face'].forEach(x => ['kr', 'en'].forEach(m => delete draft.over[`c:${i}:${x}:${m}`])); touch(); grow(); if (isSel) render(); }
+  else if (d.vtone) { settings.voice = Object.assign(voiceCfg(), { tone: t.value }); store.set('settings', settings); }
+  else if (d.fact != null) { const x = draft.facts[+d.fact]; if (x) { x.f = t.value; x.q = t.value; x.ok = false; } touch(); grow(); }
   else if (d.ov) { draft.over[d.ov + ':' + MODE()] = t.value; touch(); grow(); }
   else if (d.set) { settings[d.set] = t.value; store.set('settings', settings); }
   else if (d.p) cur().p[d.p] = t.value;

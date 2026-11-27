@@ -579,3 +579,15 @@ input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;display
 details.more .body.kv{padding:0 0 12px;gap:0}
 .segrow{display:grid;grid-template-columns:1.5fr 1fr;gap:8px}
 .segrow .seg button{font-size:13.5px;padding:10px 2px}
+/* ----- 정보형: 주제 한 줄, 사실 확인 ----- */
+.ftopic{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;color:var(--ink2);font-size:13px;line-height:1.4}
+.flist{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;font-size:14px;line-height:1.5}
+.facts-c{display:flex;flex-direction:column;gap:0;padding:6px 12px}
+.fact{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
+.fact:first-child{border-top:0}
+.fact textarea{border:0;background:none;resize:none;font:inherit;font-size:14px;line-height:1.45;color:var(--ink);padding:4px 0;min-width:0;outline:0}
+.fact textarea:focus{box-shadow:inset 0 -2px 0 var(--blue)}
+.fact.ok textarea{color:var(--muted)}
+.fact .ck{width:28px;height:28px}
+.chip .cs{font-size:11.5px;font-weight:600;opacity:.75;margin-left:2px}
+.fbar .seg{flex:none;min-width:120px}
