@@ -27,3 +27,5 @@ cd android && ./gradlew assembleRelease   # keystore.properties 가 있으면 �
 ```
 
 서명 키(`*.jks`)와 `keystore.properties` 는 저장소에 올리지 않는다.
+
+새 세션은 먼저 [docs/작업노트.md](docs/작업노트.md)를 읽는다 (정한 것, 하던 일, 서명 키, 빌드 방법).

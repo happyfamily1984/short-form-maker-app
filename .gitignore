@@ -1,8 +1,10 @@
-node_modules/
+*.apk
 *.jks
 *.keystore
+.gradle/
+apk-out/
+build/
 keystore.properties
 local.properties
-.gradle/
-build/
-*.apk
+node_modules/
+tools/uitest/out/
